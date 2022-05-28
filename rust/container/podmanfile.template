@@ -1,0 +1,7 @@
+FROM rust:latest
+
+WORKDIR /usr/src/file-server
+
+RUN cargo install --path .
+
+CMD ["file-server"]

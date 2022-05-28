@@ -1,0 +1,7 @@
+{
+    "dir": "../demo",
+    "port": 3000,
+    "filepath_index": "../demo/index.html",
+    "filepath_400": "../demo/400.html",
+    "filepath_404": "../demo/404.html"
+}
