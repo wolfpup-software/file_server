@@ -11,8 +11,7 @@ mod send_file;
 
 #[tokio::main]
 async fn main() {
-    // get args
-    println!("{:?}", env::args());
+    // get json config
     let args = match env::args().nth(1) {
         Some(a) => a,
         None => return println!("no config params were found"),
@@ -23,28 +22,35 @@ async fn main() {
         Err(e) => return println!("{:?}", e),
     };
 
-    let config = match config::get_config_buffs(config_pathbuff) {
+    // get configuration
+    let config = match config::get_config(config_pathbuff) {
         Ok(c) => c,
         Err(e) => return println!("{:?}", e),
     };
 
-    let top_scope_config = config.clone();
+    let config_buffs = match config::get_config_buffs(&config) {
+        Ok(c) => c,
+        Err(e) => return println!("{:?}", e),
+    };
 
-    let make_svc = make_service_fn(move |_| {
-        let conf = config.clone();
-        async move {
+    // create function for server (hyper::Server)
+    let file_service = make_service_fn(|_| {
+        let conf = config_buffs.clone();
+        async {
             Ok::<_, Infallible>(service_fn(move |_req| {
                 send_file::send_file(conf.clone(), _req)
             }))
         }
     });
 
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), top_scope_config.port);
-    let server = Server::bind(&addr).serve(make_svc);
+    let addr = SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        config.port,
+    );
 
-    println!("config: {:?}", top_scope_config);
+    // create and run server
+    let server = Server::bind(&addr).serve(file_service);
 
-    // Run this server for... forever!
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
     }

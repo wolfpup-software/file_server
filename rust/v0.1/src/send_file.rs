@@ -30,11 +30,24 @@ impl SendFileError {
     }
 }
 
+// fn get_extension(request_path: &path::PathBuf): &str {
+//     match request_path.extension() {
+//         "txt" => "text",
+//         "html" => "html",
+//         "css" => "css",
+//         "js" => "js",
+//         "json" => "json",
+//         // image gif, png
+//         // audio vorbis ogg mp3
+//         // video
+//         //
+//     }
+// }
+
 fn get_pathbuff(dir: &path::PathBuf, _req: &Request<Body>) -> Result<path::PathBuf, io::Error> {
     let mut path = path::PathBuf::from(dir);
     println!("dir {:?}", path);
 
-    // path.push(_req.uri().path().strip_prefix("/"));
     let uri_path = _req.uri().path();
     let stripped_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => p,
@@ -42,17 +55,13 @@ fn get_pathbuff(dir: &path::PathBuf, _req: &Request<Body>) -> Result<path::PathB
     };
 
     path.push(stripped_path);
-    println!("path {:?}", path);
-    path.canonicalize()?;
-    println!("canon path: {:?}", path);
 
     if path.is_dir() {
         path.push(INDEX);
         path.set_extension(HTML);
     }
 
-    println!("final path: {:?}", path);
-    println!("final path exists: {:?}", path.exists());
+    path.canonicalize()?;
     
     Ok(path)
 }
@@ -66,7 +75,7 @@ fn error_response() -> Response<Body> {
 }
 
 fn valid_path(base_dir: &path::PathBuf, request_path: &path::PathBuf) -> bool {
-    !request_path.starts_with(base_dir)
+    request_path.starts_with(base_dir)
 }
 
 // add file sieve
@@ -88,42 +97,36 @@ async fn serve_file(request_path: &path::PathBuf, status_code: StatusCode) -> Op
 }
 
 pub async fn send_file(config: config::ConfigBuffs, _req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let mut status_code;
+    let mut status_code = StatusCode::OK;
     match get_pathbuff(&config.dir, &_req) {
         Ok(pb) => {
             if !valid_path(&config.dir, &pb) {
-                println!("not valid path!");
-                status_code = StatusCode::BAD_REQUEST;
+                status_code = StatusCode::FORBIDDEN;
             }
 
-            if let Some(response) = serve_file(&pb, StatusCode::OK).await {
-                println!("file was ok!");
-                return Ok(response);
-            };
-
-            status_code = StatusCode::NOT_FOUND;
+            if status_code == StatusCode::OK {
+                if let Some(response) = serve_file(&pb, StatusCode::OK).await {
+                    return Ok(response);
+                };
+                status_code = StatusCode::INTERNAL_SERVER_ERROR;
+            }
         },
         Err(_) => {
             status_code = StatusCode::NOT_FOUND;
         },
     }
-    
-    println!("final path: {:?}", status_code);
 
-    if status_code == StatusCode::BAD_REQUEST && valid_path(&config.dir, &config.filepath_400) {
-        println!("serving 400!");
-        if let Some(response) = serve_file(&config.filepath_400, StatusCode::BAD_REQUEST).await {
+    if status_code == StatusCode::FORBIDDEN && valid_path(&config.dir, &config.filepath_403) {
+        if let Some(response) = serve_file(&config.filepath_403, StatusCode::BAD_REQUEST).await {
             return Ok(response);
         };
     }
 
     if status_code == StatusCode::NOT_FOUND && valid_path(&config.dir, &config.filepath_404) {
-        println!("serving 404!");
         if let Some(response) = serve_file(&config.filepath_404, StatusCode::NOT_FOUND).await {
             return Ok(response);
         };
     }
 
-    println!("didn't find nothing!!");
     Ok(error_response())
 }

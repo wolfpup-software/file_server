@@ -2,6 +2,6 @@
     "dir": "../demo",
     "port": 3000,
     "filepath_index": "../demo/index.html",
-    "filepath_400": "../demo/400.html",
+    "filepath_403": "../demo/403.html",
     "filepath_404": "../demo/404.html"
 }
