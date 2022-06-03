@@ -117,13 +117,13 @@ pub async fn send_file(config: config::ConfigBuffs, _req: Request<Body>) -> Resu
     }
 
     if status_code == StatusCode::FORBIDDEN && valid_path(&config.dir, &config.filepath_403) {
-        if let Some(response) = serve_file(&config.filepath_403, StatusCode::BAD_REQUEST).await {
+        if let Some(response) = serve_file(&config.filepath_403, status_code).await {
             return Ok(response);
         };
     }
 
     if status_code == StatusCode::NOT_FOUND && valid_path(&config.dir, &config.filepath_404) {
-        if let Some(response) = serve_file(&config.filepath_404, StatusCode::NOT_FOUND).await {
+        if let Some(response) = serve_file(&config.filepath_404, status_code).await {
             return Ok(response);
         };
     }
