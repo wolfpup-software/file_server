@@ -19,23 +19,17 @@ async fn main() {
 
     let config_pathbuff = match config::get_pathbuff(&args) {
         Ok(pb) => pb,
-        Err(e) => return println!("{:?}", e),
+        Err(e) => return println!("{}", e),
     };
 
-    // get configuration
     let config = match config::get_config(config_pathbuff) {
         Ok(c) => c,
-        Err(e) => return println!("{:?}", e),
-    };
-
-    let config_buffs = match config::get_config_buffs(&config) {
-        Ok(c) => c,
-        Err(e) => return println!("{:?}", e),
+        Err(e) => return println!("{}", e),
     };
 
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
-        let conf = config_buffs.clone();
+        let conf = config.clone();
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
                 send_file::send_file(conf.clone(), _req)
@@ -43,14 +37,13 @@ async fn main() {
         }
     });
 
+    // create and run server
     let addr = SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
         config.port,
     );
 
-    // create and run server
     let server = Server::bind(&addr).serve(file_service);
-
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
     }
