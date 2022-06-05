@@ -13,6 +13,8 @@ static OUT_OF_BOUNDS_403_ERR: &str = "config.filepath_403 is not located in the 
 static NOT_A_FILE_403_ERR: &str = "config.filepath_403 is not a file";
 static OUT_OF_BOUNDS_404_ERR: &str = "config.filepath_404 is not located in the base directory";
 static NOT_A_FILE_404_ERR: &str = "config.filepath_404 is not a file";
+static OUT_OF_BOUNDS_500_ERR: &str = "config.filepath_500 is not located in the base directory";
+static NOT_A_FILE_500_ERR: &str = "config.filepath_500 is not a file";
 
 pub struct ConfigError {
     message: String,
@@ -36,6 +38,7 @@ pub struct Config {
     pub port: u16,
     pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
+    pub filepath_500: path::PathBuf,
 }
 
 fn valid_path(base_dir: &path::PathBuf, request_path: &path::PathBuf) -> bool {
@@ -66,7 +69,6 @@ pub fn get_config(pathbuff: path::PathBuf) -> Result<Config, ConfigError> {
         Ok(j) => j,
         Err(_) => return Err(ConfigError::new(JSON_DESERIALIZE_ERR)),
     };
-
     if !config.dir.is_dir() {
         return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
     }
@@ -83,6 +85,13 @@ pub fn get_config(pathbuff: path::PathBuf) -> Result<Config, ConfigError> {
     }
     if !valid_path(&config.dir, &config.filepath_403) {
         return Err(ConfigError::new(OUT_OF_BOUNDS_403_ERR))
+    }
+
+    if !config.filepath_500.is_file() {
+        return Err(ConfigError::new(NOT_A_FILE_500_ERR))
+    }
+    if !valid_path(&config.dir, &config.filepath_500) {
+        return Err(ConfigError::new(OUT_OF_BOUNDS_500_ERR))
     }
 
     Ok(config)

@@ -9,9 +9,11 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 
 use crate::config;
 
+
+
 static INDEX: &str = "index";
 static FWD_SLASH: &str = "/";
-static ERROR: &[u8] = b"500 Internal server error";
+static ERROR: &[u8] = b"500 Internal Server Error";
 
 // TEXT
 const CSS_EXT: &str = "css";
@@ -28,6 +30,16 @@ const TEXT_EXT: &str = "txt";
 const TEXT: &str = "text/plain; charset=utf-8";
 const XML_EXT: &str = "xml";
 const XML: &str = "application/xml";
+
+// FONTS
+const OTF_EXT: &str = "otf";
+const OTF: &str = "font/otf";
+const TTF_EXT: &str = "ttf";
+const TTF: &str = "font/ttf";
+const WOFF_EXT: &str = "woff";
+const WOFF: &str = "font/woff";
+const WOFF2_EXT: &str = "woff2";
+const WOFF2: &str = "font/woff2";
 
 // IMAGES
 const BMP_EXT: &str = "bmp";
@@ -76,22 +88,17 @@ const OGGV: &str = "video/ogg";
 const WEBM_EXT: &str = "webm";
 const WEBM: &str = "video/webm";
 
-
-// FONTS
-const OTF_EXT: &str = "otf";
-const OTF: &str = "font/otf";
-const TTF_EXT: &str = "ttf";
-const TTF: &str = "font/ttf";
-const WOFF_EXT: &str = "woff";
-const WOFF: &str = "font/woff";
-const WOFF2_EXT: &str = "woff2";
-const WOFF2: &str = "font/woff2";
-
 // COMPRESSION
 const GZIP_EXT: &str = "gz";
 const GZIP: &str = "application/gzip";
 const ZIP_EXT: &str = "zip";
 const ZIP: &str = "application/zip";
+
+// STREAMING
+const TSV_EXT = "ts";
+const TSV = "video/MP2T";
+const M3U8_EXT = "M3U8";
+const M3U8  = "application/x-mpegURL";
 
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
@@ -110,6 +117,8 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
         CSS_EXT => CSS,
         JS_EXT => JS,
         JSON_EXT => JSON,
+        TSV_EXT => TSV,
+        M3U8_EXT => M3U8,
 
         // several per page
         SVG_EXT => SVG,
@@ -158,13 +167,8 @@ fn error_response() -> Response<Body> {
         .unwrap()
 }
 
-fn valid_path(base_dir: &path::PathBuf, request_path: &path::PathBuf) -> bool {
-    request_path.starts_with(base_dir)
-}
-
 fn get_pathbuff(dir: &path::PathBuf, _req: &Request<Body>) -> Result<path::PathBuf, io::Error> {
     let mut path = path::PathBuf::from(dir);
-
     let uri_path = _req.uri().path();
     let stripped_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => p,
@@ -181,11 +185,9 @@ fn get_pathbuff(dir: &path::PathBuf, _req: &Request<Body>) -> Result<path::PathB
     Ok(path)
 }
 
-// add file sieve
 async fn serve_file(request_path: path::PathBuf, status_code: StatusCode) -> Result<Response<Body>, std::io::Error> {
     match File::open(&request_path).await {
         Ok(file) => {
-            // get file type and add extension to request
             let content_type = get_content_type(&request_path);
             let stream = FramedRead::new(file, BytesCodec::new());
             let body = Body::wrap_stream(stream);
@@ -195,7 +197,6 @@ async fn serve_file(request_path: path::PathBuf, status_code: StatusCode) -> Res
                 .body(body)
                 .unwrap();
             
-            // response new, set type
             Ok(response)
         },
         Err(e) => Err(e),
@@ -203,12 +204,13 @@ async fn serve_file(request_path: path::PathBuf, status_code: StatusCode) -> Res
 }
 
 pub async fn send_file(config: config::Config, _req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    // assume request is inherently unauthorized
     let mut status_code = StatusCode::FORBIDDEN;
     let mut pb = config.filepath_403;
     
     match get_pathbuff(&config.dir, &_req) {
         Ok(p) => {
-            if valid_path(&config.dir, &p) {
+            if p.starts_with(&config.dir) {
                 status_code = StatusCode::OK;
                 pb = p;
             }
@@ -219,9 +221,18 @@ pub async fn send_file(config: config::Config, _req: Request<Body>) -> Result<Re
         },
     }
 
+	// attempt to serve default responses
     if let Ok(response) = serve_file(pb, status_code).await {
         return Ok(response);
     };
 
+	if let Ok(response) = serve_file(
+		config.filepath_500,
+		StatusCode::INTERNAL_SERVER_ERROR,
+	).await {
+        return Ok(response);
+    };
+
+	// last ditch error
     Ok(error_response())
 }
