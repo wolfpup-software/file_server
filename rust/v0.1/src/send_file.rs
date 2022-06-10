@@ -10,7 +10,6 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 use crate::config;
 
 
-
 static INDEX: &str = "index";
 static FWD_SLASH: &str = "/";
 static ERROR: &[u8] = b"500 Internal Server Error";
@@ -95,79 +94,82 @@ const ZIP_EXT: &str = "zip";
 const ZIP: &str = "application/zip";
 
 // STREAMING
-const TSV_EXT = "ts";
-const TSV = "video/MP2T";
-const M3U8_EXT = "M3U8";
-const M3U8  = "application/x-mpegURL";
+const TSV_EXT: &str = "ts";
+const TSV: &str = "video/MP2T";
+const M3U8_EXT: &str = "M3U8";
+const M3U8: &str = "application/x-mpegURL";
 
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
-    let extension = match request_path.extension() {
-        Some(ext) => {
-            match ext.to_str() {
-                Some(e) => e,
-                None => TEXT_EXT,
-            }
-        },
-        None => TEXT_EXT,
-    };
+	let extension = match request_path.extension() {
+		Some(ext) => {
+			match ext.to_str() {
+				Some(e) => e,
+				None => TEXT_EXT,
+			}
+		},
+		None => TEXT_EXT,
+	};
 
-    match extension {
-        // many per page
-        CSS_EXT => CSS,
-        JS_EXT => JS,
-        JSON_EXT => JSON,
-        TSV_EXT => TSV,
-        M3U8_EXT => M3U8,
+	match extension {
+		// many per page
+		CSS_EXT => CSS,
+		JS_EXT => JS,
+		JSON_EXT => JSON,
+		TSV_EXT => TSV,
+		M3U8_EXT => M3U8,
 
-        // several per page
-        SVG_EXT => SVG,
-        PNG_EXT => PNG,
-        PDF_EXT => PDF,
-        GIF_EXT => GIF,
-        JPEG_EXT => JPEG,
-        JPG_EXT => JPEG,
-        TTF_EXT => TTF,
-        WOFF_EXT => WOFF,
-        WOFF2_EXT => WOFF2,
-        OTF_EXT => OTF,
+		// several per page
+		SVG_EXT => SVG,
+		PNG_EXT => PNG,
+		PDF_EXT => PDF,
+		GIF_EXT => GIF,
+		JPEG_EXT => JPEG,
+		JPG_EXT => JPEG,
+		TTF_EXT => TTF,
+		WOFF_EXT => WOFF,
+		WOFF2_EXT => WOFF2,
+		OTF_EXT => OTF,
 
-        // one per page
-        HTML_EXT => HTML,
-        GZIP_EXT => GZIP,
-        ICO_EXT => ICO,
+		// one per page
+		HTML_EXT => HTML,
+		GZIP_EXT => GZIP,
+		ICO_EXT => ICO,
 
-        // otherwise
-        AAC_EXT => AAC,
-        BMP_EXT => BMP,
-        CSV_EXT => CSV,
-        FLAC_EXT => FLAC,
-        MIDI_EXT => MIDI,
-        MP3_EXT => MP3,
-        MP4_EXT => MP4,
-        MPEG_EXT => MPEG,
-        OGGA_EXT => OGGA,
-        OGGV_EXT => OGGV,
-        TEXT_EXT => TEXT,
-        TIFF_EXT => TIFF,
-        WAV_EXT => WAV,
-        WEBA_EXT => WEBA,
-        WEBM_EXT => WEBM,
-        WEBP_EXT => WEBP,
-        XML_EXT => XML,
-        ZIP_EXT => ZIP,
-        _ => TEXT,
-    }
+		// otherwise
+		AAC_EXT => AAC,
+		BMP_EXT => BMP,
+		CSV_EXT => CSV,
+		FLAC_EXT => FLAC,
+		MIDI_EXT => MIDI,
+		MP3_EXT => MP3,
+		MP4_EXT => MP4,
+		MPEG_EXT => MPEG,
+		OGGA_EXT => OGGA,
+		OGGV_EXT => OGGV,
+		TEXT_EXT => TEXT,
+		TIFF_EXT => TIFF,
+		WAV_EXT => WAV,
+		WEBA_EXT => WEBA,
+		WEBM_EXT => WEBM,
+		WEBP_EXT => WEBP,
+		XML_EXT => XML,
+		ZIP_EXT => ZIP,
+		_ => TEXT,
+	}
 }
 
 fn error_response() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(ERROR.into())
-        .unwrap()
+	Response::builder()
+		.status(StatusCode::INTERNAL_SERVER_ERROR)
+		.body(ERROR.into())
+		.unwrap()
 }
 
-fn get_pathbuff(dir: &path::PathBuf, _req: &Request<Body>) -> Result<path::PathBuf, io::Error> {
+fn get_pathbuff(
+	dir: &path::PathBuf,
+	_req: &Request<Body>,
+) -> Result<path::PathBuf, io::Error> {
     let mut path = path::PathBuf::from(dir);
     let uri_path = _req.uri().path();
     let stripped_path = match uri_path.strip_prefix(FWD_SLASH) {
@@ -185,54 +187,60 @@ fn get_pathbuff(dir: &path::PathBuf, _req: &Request<Body>) -> Result<path::PathB
     Ok(path)
 }
 
-async fn serve_file(request_path: path::PathBuf, status_code: StatusCode) -> Result<Response<Body>, std::io::Error> {
-    match File::open(&request_path).await {
-        Ok(file) => {
-            let content_type = get_content_type(&request_path);
-            let stream = FramedRead::new(file, BytesCodec::new());
-            let body = Body::wrap_stream(stream);
-            let response = Response::builder()
-                .status(status_code)
-                .header(CONTENT_TYPE, content_type)
-                .body(body)
-                .unwrap();
-            
-            Ok(response)
-        },
-        Err(e) => Err(e),
-    }
+async fn serve_file(
+	request_path: path::PathBuf,
+	status_code: StatusCode,
+) -> Result<Response<Body>, std::io::Error> {
+	match File::open(&request_path).await {
+		Ok(file) => {
+			let content_type = get_content_type(&request_path);
+			let stream = FramedRead::new(file, BytesCodec::new());
+			let body = Body::wrap_stream(stream);
+			let response = Response::builder()
+				.status(status_code)
+				.header(CONTENT_TYPE, content_type)
+				.body(body)
+				.unwrap();
+			
+			Ok(response)
+		},
+		Err(e) => Err(e),
+	}
 }
 
-pub async fn send_file(config: config::Config, _req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    // assume request is inherently unauthorized
-    let mut status_code = StatusCode::FORBIDDEN;
-    let mut pb = config.filepath_403;
+pub async fn send_file(
+	config: config::Config,
+	_req: Request<Body>,
+) -> Result<Response<Body>, Infallible> {
+	// assume request is inherently unauthorized
+	let mut status_code = StatusCode::FORBIDDEN;
+	let mut pb = config.filepath_403;
     
-    match get_pathbuff(&config.dir, &_req) {
-        Ok(p) => {
-            if p.starts_with(&config.dir) {
-                status_code = StatusCode::OK;
-                pb = p;
-            }
-        },
-        Err(_) => {
-            status_code = StatusCode::NOT_FOUND;
-            pb = config.filepath_404;
-        },
-    }
+	match get_pathbuff(&config.dir, &_req) {
+		Ok(p) => {
+			if p.starts_with(&config.dir) {
+					status_code = StatusCode::OK;
+					pb = p;
+			}
+		},
+		Err(_) => {
+			status_code = StatusCode::NOT_FOUND;
+			pb = config.filepath_404;
+		},
+	}
 
 	// attempt to serve default responses
-    if let Ok(response) = serve_file(pb, status_code).await {
-        return Ok(response);
-    };
+	if let Ok(response) = serve_file(pb, status_code).await {
+		return Ok(response);
+	};
 
 	if let Ok(response) = serve_file(
 		config.filepath_500,
 		StatusCode::INTERNAL_SERVER_ERROR,
 	).await {
-        return Ok(response);
-    };
+  		return Ok(response);
+  };
 
 	// last ditch error
-    Ok(error_response())
+	Ok(error_response())
 }
