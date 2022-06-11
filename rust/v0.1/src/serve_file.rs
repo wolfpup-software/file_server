@@ -166,7 +166,7 @@ fn error_response() -> Response<Body> {
 		.unwrap()
 }
 
-fn get_pathbuff(
+pub fn get_pathbuff(
 	dir: &path::PathBuf,
 	_req: &Request<Body>,
 ) -> Result<path::PathBuf, io::Error> {
@@ -187,7 +187,7 @@ fn get_pathbuff(
     Ok(path)
 }
 
-async fn serve_file(
+pub async fn load_file(
 	request_path: path::PathBuf,
 	status_code: StatusCode,
 ) -> Result<Response<Body>, std::io::Error> {
@@ -208,7 +208,7 @@ async fn serve_file(
 	}
 }
 
-pub async fn send_file(
+pub async fn serve_file(
 	config: config::Config,
 	_req: Request<Body>,
 ) -> Result<Response<Body>, Infallible> {
@@ -230,16 +230,16 @@ pub async fn send_file(
 	}
 
 	// attempt to serve default responses
-	if let Ok(response) = serve_file(pb, status_code).await {
+	if let Ok(response) = load_file(pb, status_code).await {
 		return Ok(response);
 	};
 
-	if let Ok(response) = serve_file(
+	if let Ok(response) = load_file(
 		config.filepath_500,
 		StatusCode::INTERNAL_SERVER_ERROR,
 	).await {
   		return Ok(response);
-  };
+ 	};
 
 	// last ditch error
 	Ok(error_response())

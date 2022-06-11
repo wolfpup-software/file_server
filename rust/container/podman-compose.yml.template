@@ -5,11 +5,7 @@ services:
     build:
       context: ./
       dockerfile: file-server.podmanfile
-    environment:
-      - FILEPATH_ROOT=${dirname_root}
-      - FILEPATH_400=${filepath_400}
-      - FILEPATH_404=${filepath_404}
     ports:
       - ${host_port}:${container_port}
     volumes:
-      - ${dirname_root}:/usr/src/app:z
+      - ${dirname_root}:/usr/src/file-server:z

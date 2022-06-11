@@ -6,7 +6,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Server};
 
 mod config;
-mod send_file;
+mod serve_file;
 
 
 #[tokio::main]
@@ -26,22 +26,24 @@ async fn main() {
         Ok(c) => c,
         Err(e) => return println!("{}", e),
     };
+    
+        // create and run server
+    let addr = SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        config.port,
+    );
 
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
         let conf = config.clone();
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
-                send_file::send_file(conf.clone(), _req)
+                serve_file::serve_file(conf.clone(), _req)
+                
             }))
         }
     });
 
-    // create and run server
-    let addr = SocketAddr::new(
-        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        config.port,
-    );
 
     let server = Server::bind(&addr).serve(file_service);
     if let Err(e) = server.await {
