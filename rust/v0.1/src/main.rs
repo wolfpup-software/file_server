@@ -39,7 +39,6 @@ async fn main() {
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
                 serve_file::serve_file(conf.clone(), _req)
-                
             }))
         }
     });
@@ -47,6 +46,6 @@ async fn main() {
 
     let server = Server::bind(&addr).serve(file_service);
     if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+        println!("server error: {}", e);
     }
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize};
 
 static JSON_FILE_ERR: &str = "config json file failed to load";
 static JSON_DESERIALIZE_ERR: &str = "config json deserialization failed";
-static DIR_IS_NOT_DIR_ERR: &str = "config.dir is not a directory";
+static DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
 static OUT_OF_BOUNDS_403_ERR: &str = "config.filepath_403 is not located in the base directory";
 static NOT_A_FILE_403_ERR: &str = "config.filepath_403 is not a file";
 static OUT_OF_BOUNDS_404_ERR: &str = "config.filepath_404 is not located in the base directory";
@@ -34,7 +34,7 @@ impl fmt::Display for ConfigError {
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
-    pub dir: path::PathBuf,
+    pub directory: path::PathBuf,
     pub port: u16,
     pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
@@ -69,28 +69,28 @@ pub fn get_config(pathbuff: path::PathBuf) -> Result<Config, ConfigError> {
         Ok(j) => j,
         Err(_) => return Err(ConfigError::new(JSON_DESERIALIZE_ERR)),
     };
-    if !config.dir.is_dir() {
+    if !config.directory.is_dir() {
         return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
     }
 
     if !config.filepath_404.is_file() {
         return Err(ConfigError::new(NOT_A_FILE_404_ERR))
     }
-    if !valid_path(&config.dir, &config.filepath_404) {
+    if !valid_path(&config.directory, &config.filepath_404) {
         return Err(ConfigError::new(OUT_OF_BOUNDS_404_ERR))
     }
 
     if !config.filepath_403.is_file() {
         return Err(ConfigError::new(NOT_A_FILE_403_ERR))
     }
-    if !valid_path(&config.dir, &config.filepath_403) {
+    if !valid_path(&config.directory, &config.filepath_403) {
         return Err(ConfigError::new(OUT_OF_BOUNDS_403_ERR))
     }
 
     if !config.filepath_500.is_file() {
         return Err(ConfigError::new(NOT_A_FILE_500_ERR))
     }
-    if !valid_path(&config.dir, &config.filepath_500) {
+    if !valid_path(&config.directory, &config.filepath_500) {
         return Err(ConfigError::new(OUT_OF_BOUNDS_500_ERR))
     }
 

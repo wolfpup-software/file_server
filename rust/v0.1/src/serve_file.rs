@@ -216,9 +216,9 @@ pub async fn serve_file(
 	let mut status_code = StatusCode::FORBIDDEN;
 	let mut pb = config.filepath_403;
     
-	match get_pathbuff(&config.dir, &_req) {
+	match get_pathbuff(&config.directory, &_req) {
 		Ok(p) => {
-			if p.starts_with(&config.dir) {
+			if p.starts_with(&config.directory) {
 					status_code = StatusCode::OK;
 					pb = p;
 			}
