@@ -17,12 +17,7 @@ async fn main() {
         None => return println!("no config params were found"),
     };
 
-    let config_pathbuff = match config::get_pathbuff(&args) {
-        Ok(pb) => pb,
-        Err(e) => return println!("{}", e),
-    };
-
-    let config = match config::get_config(config_pathbuff) {
+    let config = match config::get_config(&args) {
         Ok(c) => c,
         Err(e) => return println!("{}", e),
     };
@@ -36,6 +31,7 @@ async fn main() {
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
         let conf = config.clone();
+        
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
                 serve_file::serve_file(conf.clone(), _req)

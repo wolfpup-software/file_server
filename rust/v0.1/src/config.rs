@@ -6,6 +6,7 @@ use std::path;
 use serde_json;
 use serde::{Deserialize};
 
+static INCORRECT_ARGS: &str = "no config args were found";
 static JSON_FILE_ERR: &str = "config json file failed to load";
 static JSON_DESERIALIZE_ERR: &str = "config json deserialization failed";
 static DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
@@ -59,15 +60,20 @@ pub fn get_pathbuff(config_filepath: &str) -> Result<path::PathBuf, std::io::Err
     curr_dir.join(filepath).canonicalize()
 }
 
-pub fn get_config(pathbuff: path::PathBuf) -> Result<Config, ConfigError> {
-    let json_str = match fs::read_to_string(pathbuff) {
+pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
+    let config_pathbuff = match get_pathbuff(&filepath) {
+        Ok(pb) => pb,
+        _ => return Err(ConfigError::new(INCORRECT_ARGS)),
+    };
+
+    let json_str = match fs::read_to_string(config_pathbuff) {
         Ok(r) => r,
-        Err(_) => return Err(ConfigError::new(JSON_FILE_ERR)),
+        _ => return Err(ConfigError::new(JSON_FILE_ERR)),
     };
 
     let config: Config = match serde_json::from_str(&json_str) {
         Ok(j) => j,
-        Err(_) => return Err(ConfigError::new(JSON_DESERIALIZE_ERR)),
+        _ => return Err(ConfigError::new(JSON_DESERIALIZE_ERR)),
     };
     if !config.directory.is_dir() {
         return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
