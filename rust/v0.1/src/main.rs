@@ -3,7 +3,7 @@ use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Server};
+use hyper::{Server, StatusCode};
 
 mod config;
 mod serve_file;
@@ -19,25 +19,34 @@ async fn main() {
 
     let config = match config::get_config(&args) {
         Ok(c) => c,
-        Err(e) => return println!("{}", e),
+        Err(e) => return println!("configuration error: {}", e),
     };
     
-        // create and run server
-    let addr = SocketAddr::new(
-        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        config.port,
-    );
-
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
         let conf = config.clone();
         
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
-                serve_file::serve_file(conf.clone(), _req)
+            	let dir = conf.directory.clone();
+                let (status_code, pb) = match serve_file::get_pathbuff(&dir, &_req) {
+                	Ok(p) => match p.starts_with(&dir) {
+                    		true => (StatusCode::OK, p),
+                    		false => (StatusCode::FORBIDDEN, conf.filepath_403.clone()),
+                    	},
+                    	_ => (StatusCode::NOT_FOUND, conf.filepath_404.clone()),
+                };
+
+                serve_file::serve_file(status_code, pb, conf.filepath_500.clone())
             }))
         }
     });
+
+    // create and run server
+    let addr = SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        config.port,
+    );
 
 
     let server = Server::bind(&addr).serve(file_service);

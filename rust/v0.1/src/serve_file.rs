@@ -7,9 +7,6 @@ use hyper::header::CONTENT_TYPE;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-use crate::config;
-
-
 static INDEX: &str = "index";
 static FWD_SLASH: &str = "/";
 static ERROR: &[u8] = b"500 Internal Server Error";
@@ -209,33 +206,17 @@ pub async fn load_file(
 }
 
 pub async fn serve_file(
-	config: config::Config,
-	_req: Request<Body>,
+	status_code: StatusCode,
+	pb: path::PathBuf,
+	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
-	// assume request is inherently unauthorized
-	let mut status_code = StatusCode::FORBIDDEN;
-	let mut pb = config.filepath_403;
-    
-	match get_pathbuff(&config.directory, &_req) {
-		Ok(p) => {
-			if p.starts_with(&config.directory) {
-					status_code = StatusCode::OK;
-					pb = p;
-			}
-		},
-		Err(_) => {
-			status_code = StatusCode::NOT_FOUND;
-			pb = config.filepath_404;
-		},
-	}
-
 	// attempt to serve default responses
 	if let Ok(response) = load_file(pb, status_code).await {
 		return Ok(response);
 	};
-
+	
 	if let Ok(response) = load_file(
-		config.filepath_500,
+		pb_500,
 		StatusCode::INTERNAL_SERVER_ERROR,
 	).await {
   		return Ok(response);

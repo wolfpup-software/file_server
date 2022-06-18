@@ -6,7 +6,7 @@ use std::path;
 use serde_json;
 use serde::{Deserialize};
 
-static INCORRECT_ARGS: &str = "no config args were found";
+static INCORRECT_ARGS: &str = "no config parameters were found at file";
 static JSON_FILE_ERR: &str = "config json file failed to load";
 static JSON_DESERIALIZE_ERR: &str = "config json deserialization failed";
 static DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
