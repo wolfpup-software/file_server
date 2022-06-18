@@ -184,9 +184,9 @@ pub fn get_pathbuff(
     Ok(path)
 }
 
-pub async fn load_file(
-	request_path: path::PathBuf,
+async fn load_file(
 	status_code: StatusCode,
+	request_path: path::PathBuf,
 ) -> Result<Response<Body>, std::io::Error> {
 	match File::open(&request_path).await {
 		Ok(file) => {
@@ -211,13 +211,13 @@ pub async fn serve_file(
 	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
 	// attempt to serve default responses
-	if let Ok(response) = load_file(pb, status_code).await {
+	if let Ok(response) = load_file(status_code, pb).await {
 		return Ok(response);
 	};
 	
 	if let Ok(response) = load_file(
-		pb_500,
 		StatusCode::INTERNAL_SERVER_ERROR,
+		pb_500,
 	).await {
   		return Ok(response);
  	};
