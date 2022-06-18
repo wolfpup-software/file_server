@@ -21,7 +21,7 @@ async fn main() {
         Ok(c) => c,
         Err(e) => return println!("configuration error: {}", e),
     };
-    
+
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
         let conf = config.clone();
@@ -29,7 +29,7 @@ async fn main() {
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
             	let dir = conf.directory.clone();
-                let (status_code, pb) = match serve_file::get_pathbuff(&dir, &_req) {
+                let (status_code, pb) = match serve_file::get_pathbuff(&dir, _req) {
                 	Ok(p) => match p.starts_with(&dir) {
                     		true => (StatusCode::OK, p),
                     		false => (StatusCode::FORBIDDEN, conf.filepath_403.clone()),
@@ -47,7 +47,6 @@ async fn main() {
         IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
         config.port,
     );
-
 
     let server = Server::bind(&addr).serve(file_service);
     if let Err(e) = server.await {

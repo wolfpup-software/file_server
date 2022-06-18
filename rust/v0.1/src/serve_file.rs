@@ -165,7 +165,7 @@ fn error_response() -> Response<Body> {
 
 pub fn get_pathbuff(
 	dir: &path::PathBuf,
-	_req: &Request<Body>,
+	_req: Request<Body>,
 ) -> Result<path::PathBuf, io::Error> {
     let mut path = path::PathBuf::from(dir);
     let uri_path = _req.uri().path();
