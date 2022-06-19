@@ -14,7 +14,7 @@ async fn main() {
     // get json config
     let args = match env::args().nth(1) {
         Some(a) => a,
-        None => return println!("no config params were found"),
+        None => return println!("argument error: no config params were found."),
     };
 
     let config = match config::get_config(&args) {

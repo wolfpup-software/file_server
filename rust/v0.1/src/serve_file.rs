@@ -7,6 +7,7 @@ use hyper::header::CONTENT_TYPE;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
+
 static INDEX: &str = "index";
 static FWD_SLASH: &str = "/";
 static ERROR: &[u8] = b"500 Internal Server Error";
@@ -167,21 +168,19 @@ pub fn get_pathbuff(
 	dir: &path::PathBuf,
 	_req: Request<Body>,
 ) -> Result<path::PathBuf, io::Error> {
-    let mut path = path::PathBuf::from(dir);
     let uri_path = _req.uri().path();
     let stripped_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => p,
         None => uri_path,
     };
 
-    path.push(stripped_path);
+    let mut path = dir.join(stripped_path);
     if path.is_dir() {
         path.push(INDEX);
         path.set_extension(HTML_EXT);
     }
 
-    path.canonicalize()?;
-    Ok(path)
+    path.canonicalize()
 }
 
 async fn load_file(
@@ -210,7 +209,6 @@ pub async fn serve_file(
 	pb: path::PathBuf,
 	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
-	// attempt to serve default responses
 	if let Ok(response) = load_file(status_code, pb).await {
 		return Ok(response);
 	};

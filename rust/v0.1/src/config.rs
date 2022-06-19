@@ -6,16 +6,24 @@ use std::path;
 use serde_json;
 use serde::{Deserialize};
 
-static INCORRECT_ARGS: &str = "no config parameters were found at file";
+
+static CURR_DIR_NOT_FOUND: &str = "could not find working directory";
+static CONFIG_NOT_FOUND_ERR: &str = "no config parameters were found at location";
 static JSON_FILE_ERR: &str = "config json file failed to load";
-static JSON_DESERIALIZE_ERR: &str = "config json deserialization failed";
+static JSON_DESERIALIZE_FAILED_ERR: &str = "config json deserialization failed";
+static PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
+static DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
 static DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
-static OUT_OF_BOUNDS_403_ERR: &str = "config.filepath_403 is not located in the base directory";
-static NOT_A_FILE_403_ERR: &str = "config.filepath_403 is not a file";
-static OUT_OF_BOUNDS_404_ERR: &str = "config.filepath_404 is not located in the base directory";
-static NOT_A_FILE_404_ERR: &str = "config.filepath_404 is not a file";
-static OUT_OF_BOUNDS_500_ERR: &str = "config.filepath_500 is not located in the base directory";
-static NOT_A_FILE_500_ERR: &str = "config.filepath_500 is not a file";
+static FILE_403_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
+static FILE_403_NOT_A_FILE_ERR: &str = "config.filepath_403 is not a file";
+static FILE_403_OUT_OF_BOUNDS_ERR: &str = "config.filepath_403 is not located in the base directory";
+static FILE_404_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
+static FILE_404_NOT_A_FILE_ERR: &str = "config.filepath_404 is not a file";
+static FILE_404_OUT_OF_BOUNDS_ERR: &str = "config.filepath_404 is not located in the base directory";
+static FILE_500_NOT_FOUND_ERR: &str = "config.filepath_500 was not found";
+static FILE_500_NOT_A_FILE_ERR: &str = "config.filepath_500 is not a file";
+static FILE_500_OUT_OF_BOUNDS_ERR: &str = "config.filepath_500 is not located in the base directory";
+
 
 pub struct ConfigError {
     message: String,
@@ -42,63 +50,131 @@ pub struct Config {
     pub filepath_500: path::PathBuf,
 }
 
-fn valid_path(base_dir: &path::PathBuf, request_path: &path::PathBuf) -> bool {
-    request_path.starts_with(base_dir)
-}
 
-pub fn get_pathbuff(config_filepath: &str) -> Result<path::PathBuf, std::io::Error> {
-    let filepath = path::PathBuf::from(&config_filepath);
-    if filepath.has_root() {
-        return Ok(filepath);
+pub fn get_file_pathbuff(
+	dir: &path::Path,
+	filepath: &path::PathBuf,
+) -> Result<path::PathBuf, std::io::Error> {
+    let fp = path::PathBuf::from(&filepath);
+    if fp.has_root() {
+        return Ok(fp);
     }
 
-    let curr_dir = match env::current_dir() {
-        Ok(pb) => pb,
-        Err(e) => return Err(e),
-    };
+    dir.join(fp).canonicalize()
+}
 
-    curr_dir.join(filepath).canonicalize()
+pub fn get_config_pathbuff(
+	dir: path::PathBuf,
+	filepath: &str,
+) -> Result<path::PathBuf, std::io::Error> {
+    let fp = path::PathBuf::from(&filepath);
+    if fp.has_root() {
+        return Ok(fp);
+    }
+
+    dir.join(fp).canonicalize()
+}
+
+fn validate_filepath(
+	rel_dir: &path::Path,
+	pb: &path::PathBuf,
+	base_dir: &path::PathBuf,
+	not_found_err: &str,
+	file_err: &str,
+	bound_err: &str,
+) -> Result<path::PathBuf, ConfigError> {
+    let fp = match get_file_pathbuff(rel_dir, pb) {
+        Ok(j) => j,
+        _ => return Err(ConfigError::new(not_found_err)),
+    };
+    if !fp.is_file() {
+        return Err(ConfigError::new(file_err));
+    }
+    if !fp.starts_with(base_dir) {
+        return Err(ConfigError::new(bound_err));
+    }
+    
+    Ok(fp)
 }
 
 pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
-    let config_pathbuff = match get_pathbuff(&filepath) {
+	// get json from filepath
+    let curr_dir = match env::current_dir() {
         Ok(pb) => pb,
-        _ => return Err(ConfigError::new(INCORRECT_ARGS)),
+        _ => return Err(ConfigError::new(CURR_DIR_NOT_FOUND))
+    };
+    
+    let config_pathbuff = match get_config_pathbuff(curr_dir, filepath) {
+        Ok(pb) => pb,
+        _ => return Err(ConfigError::new(CONFIG_NOT_FOUND_ERR)),
     };
 
-    let json_str = match fs::read_to_string(config_pathbuff) {
+    let json_as_str = match fs::read_to_string(&config_pathbuff) {
         Ok(r) => r,
         _ => return Err(ConfigError::new(JSON_FILE_ERR)),
     };
 
-    let config: Config = match serde_json::from_str(&json_str) {
+	// build config from json string
+    let config: Config = match serde_json::from_str(&json_as_str) {
         Ok(j) => j,
-        _ => return Err(ConfigError::new(JSON_DESERIALIZE_ERR)),
+        _ => return Err(ConfigError::new(JSON_DESERIALIZE_FAILED_ERR)),
     };
-    if !config.directory.is_dir() {
+    
+    let parent = match config_pathbuff.parent() {
+    	Some(p) => p,
+    	_ => return Err(ConfigError::new(PARENT_NOT_FOUND_ERR))
+    };
+    
+    let directory = match get_file_pathbuff(&parent, &config.directory) {
+        Ok(j) => j,
+        _ => return Err(ConfigError::new(DIR_TARGET_NOT_FOUND_ERR)),
+    };
+    if !directory.is_dir() {
         return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
     }
 
-    if !config.filepath_404.is_file() {
-        return Err(ConfigError::new(NOT_A_FILE_404_ERR))
-    }
-    if !valid_path(&config.directory, &config.filepath_404) {
-        return Err(ConfigError::new(OUT_OF_BOUNDS_404_ERR))
-    }
-
-    if !config.filepath_403.is_file() {
-        return Err(ConfigError::new(NOT_A_FILE_403_ERR))
-    }
-    if !valid_path(&config.directory, &config.filepath_403) {
-        return Err(ConfigError::new(OUT_OF_BOUNDS_403_ERR))
-    }
-
-    if !config.filepath_500.is_file() {
-        return Err(ConfigError::new(NOT_A_FILE_500_ERR))
-    }
-    if !valid_path(&config.directory, &config.filepath_500) {
-        return Err(ConfigError::new(OUT_OF_BOUNDS_500_ERR))
-    }
-
-    Ok(config)
+	// create config with absolute filepaths from client config
+    let filepath_403 = match validate_filepath(
+    	&parent,
+    	&config.filepath_403,
+    	&directory,
+    	FILE_403_NOT_FOUND_ERR,
+    	FILE_403_NOT_A_FILE_ERR,
+    	FILE_403_OUT_OF_BOUNDS_ERR,
+    ) {
+        Ok(j) => j,
+        Err(e) => return Err(e),
+    };
+    
+    let filepath_404 = match validate_filepath(
+    	&parent,
+    	&config.filepath_404,
+    	&directory,
+    	FILE_404_NOT_FOUND_ERR,
+    	FILE_404_NOT_A_FILE_ERR,
+    	FILE_404_OUT_OF_BOUNDS_ERR,
+    ) {
+        Ok(j) => j,
+        Err(e) => return Err(e),
+    };
+    
+    let filepath_500 = match validate_filepath(
+    	&parent,
+    	&config.filepath_500,
+    	&directory,
+    	FILE_500_NOT_FOUND_ERR,
+    	FILE_500_NOT_A_FILE_ERR,
+    	FILE_500_OUT_OF_BOUNDS_ERR,
+    ) {
+        Ok(j) => j,
+        Err(e) => return Err(e),
+    };
+    
+    Ok(Config {
+    	directory: directory,
+    	port: config.port,
+    	filepath_403: filepath_403,
+    	filepath_404: filepath_404,
+    	filepath_500: filepath_500,
+    })
 }
