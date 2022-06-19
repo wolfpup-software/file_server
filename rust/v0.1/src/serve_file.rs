@@ -14,19 +14,19 @@ static ERROR: &[u8] = b"500 Internal Server Error";
 
 // TEXT
 const CSS_EXT: &str = "css";
-const CSS: &str = "text/css";
-const CSV: &str = "text/csv";
+const CSS: &str = "text/css; charset=utf-8";
 const CSV_EXT: &str = "csv";
+const CSV: &str = "text/csv; charset=utf-8";
 const HTML_EXT: &str = "html";
 const HTML: &str = "text/html; charset=utf-8";
 const JS_EXT: &str = "js";
-const JS: &str = "text/javascript";
+const JS: &str = "text/javascript; charset=utf-8";
 const JSON_EXT: &str = "json";
-const JSON: &str = "application/json";
+const JSON: &str = "application/json; charset=utf-8";
 const TEXT_EXT: &str = "txt";
 const TEXT: &str = "text/plain; charset=utf-8";
 const XML_EXT: &str = "xml";
-const XML: &str = "application/xml";
+const XML: &str = "application/xml; charset=utf-8";
 
 // FONTS
 const OTF_EXT: &str = "otf";
