@@ -60,12 +60,12 @@ const WEBP_EXT: &str = "webp";
 const WEBP: &str = "image/webp";
 
 // AUDIO
-const MIDI: &str = "audio/midi";
 const AAC_EXT: &str = "aac";
 const AAC: &str = "audio/aac";
 const FLAC_EXT: &str = "flac";
 const FLAC: &str = "audio/flac";
 const MIDI_EXT: &str = "midi";
+const MIDI: &str = "audio/midi";
 const MP3_EXT: &str = "mp3";
 const MP3: &str = "audio/mpeg";
 const OGGA_EXT: &str = "oga";
@@ -92,10 +92,10 @@ const ZIP_EXT: &str = "zip";
 const ZIP: &str = "application/zip";
 
 // STREAMING
-const TSV_EXT: &str = "ts";
-const TSV: &str = "video/MP2T";
 const M3U8_EXT: &str = "M3U8";
 const M3U8: &str = "application/x-mpegURL";
+const TSV_EXT: &str = "ts";
+const TSV: &str = "video/MP2T";
 
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
