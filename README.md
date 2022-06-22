@@ -19,7 +19,7 @@ Open a browser and visit `http://localhost:3000`.
 
 The first argument of `file-server` is the `filepath` of a `json` configuraiton file.
 
-The configuration file uses to the following `json` schema:
+The configuration file uses to the following schema:
 
 ```json
 {
@@ -31,9 +31,9 @@ The configuration file uses to the following `json` schema:
 }
 ```
 
-Change the `port` property to serve files from a different port.
+Change the `port` property serve from a different port.
 
-Change the `directory` property to serve a different directory.
+Change the `directory` property to target a different directory.
 
 Each `directory` must include a `filepath` for the following status codes:
 - `403` at `filepath_403`
