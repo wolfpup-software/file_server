@@ -4,6 +4,6 @@ WORKDIR /usr/src/file-server
 
 RUN cargo install --path .
 
-EXPOSE ${container_port}
+EXPOSE {port}
 
 CMD ["file-server"]

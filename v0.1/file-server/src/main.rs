@@ -29,6 +29,7 @@ async fn main() {
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
             	let dir = conf.directory.clone();
+                
                 let (status_code, pb) = match serve_file::get_pathbuff(&dir, _req) {
                 	Ok(p) => match p.starts_with(&dir) {
                     		true => (StatusCode::OK, p),
