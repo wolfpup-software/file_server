@@ -5,7 +5,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Server, StatusCode};
 
-mod config;
+use config;
+
 mod serve_file;
 
 

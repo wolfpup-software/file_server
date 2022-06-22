@@ -41,7 +41,7 @@ impl fmt::Display for ConfigError {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct Config {
     pub directory: path::PathBuf,
     pub port: u16,
