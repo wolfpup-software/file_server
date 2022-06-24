@@ -1,7 +1,11 @@
 use std::env;
 use std::path;
-
+use std::fs;
+use std::io::Write;
 use config;
+
+mod templates;
+
 
 fn main() {
     let args = match env::args().nth(1) {
@@ -19,23 +23,39 @@ fn main() {
         _ => return println!("current_dir error: no current_dir")
     };
     
-    let args2 = match env::args().nth(2) {
-        Some(a) => a,
+    let destination = match env::args().nth(2) {
+        Some(a) => path::PathBuf::from(a),
         None => return println!("2nd argument error: no destination was found."),
     };
-
-    // get output dir
-    let destination = path::PathBuf::from(args2);
     if !destination.is_dir() {
         return println!("2nd argument error: destination is not a dir")
-    }
+    };
 
-    
-    // load file podmanfile.template
-    
-    // get formated String
+    let contents = match fs::read_to_string("podmanfile.template") {
+        Ok(c) => c,
+        _ => return println!("template error: no podmanfile found"),
+    };
+    let podmanfile = contents.replace("{port}", "3000");
 
-    // save file to destination/podmanfile.template
+    println!("{:?}", podmanfile);
+
+    // output podman file to directory
+    let mut output = match fs::File::create("file-server.podmanfile") {
+        Ok(o) => o,
+        _ => return println!("template error: could not write podmanfile template.")
+    };
+    output.write_all(podmanfile.as_bytes());
+
+    let contents1 = match fs::read_to_string("podman-compose.yml.template") {
+        Ok(c) => c,
+        _ => return println!("template error: no podmanfile-compose found"),
+    };
+
+    let podman_file = contents1
+        .replace("{port}", "3000")
+        .replace("{directory}", "./hello!");
     
-    println!("{:?}", destination);
+    println!("{:?}", podman_file);
+
+
 }

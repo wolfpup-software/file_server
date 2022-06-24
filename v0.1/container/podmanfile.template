@@ -1,5 +1,11 @@
 FROM rust:latest
 
+VOLUME [{}, {}]
+
+COPY /json /json/location
+
+COPY /absolute/path/of/app
+
 WORKDIR /usr/src/file-server
 
 RUN cargo install --path .
