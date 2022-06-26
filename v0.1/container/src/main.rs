@@ -4,58 +4,45 @@ use std::fs;
 use std::io::Write;
 use config;
 
-mod templates;
+mod container;
 
 
 fn main() {
-    let args = match env::args().nth(1) {
-        Some(a) => a,
-        None => return println!("1st argument error: no config params were found."),
+    let config_filepath = match env::args().nth(1) {
+        Some(fp) => fp,
+        _ => return println!("args error: config filepath not found in args"),
     };
 
-    let config = match config::get_config(&args) {
+    let config = match config::get_config(&config_filepath) {
         Ok(c) => c,
         Err(e) => return println!("configuration error: {}", e),
     };
 
-    let curr_dir = match env::current_dir() {
-        Ok(pb) => pb,
-        _ => return println!("current_dir error: no current_dir")
-    };
-    
-    let destination = match env::args().nth(2) {
-        Some(a) => path::PathBuf::from(a),
-        None => return println!("2nd argument error: no destination was found."),
-    };
-    if !destination.is_dir() {
-        return println!("2nd argument error: destination is not a dir")
+    let destination = match container::get_dest_dir_from_args() {
+        Some(d) => d,
+        _ => return println!("args error: destination directory not found."),
     };
 
-    let contents = match fs::read_to_string("podmanfile.template") {
+    let container_config = match container::create_config(
+        &config,
+        &destination,
+    ) {
         Ok(c) => c,
-        _ => return println!("template error: no podmanfile found"),
-    };
-    let podmanfile = contents.replace("{port}", "3000");
-
-    println!("{:?}", podmanfile);
-
-    // output podman file to directory
-    let mut output = match fs::File::create("file-server.podmanfile") {
-        Ok(o) => o,
-        _ => return println!("template error: could not write podmanfile template.")
-    };
-    output.write_all(podmanfile.as_bytes());
-
-    let contents1 = match fs::read_to_string("podman-compose.yml.template") {
-        Ok(c) => c,
-        _ => return println!("template error: no podmanfile-compose found"),
+        _ => return println!("config error: failed to create container config")
     };
 
-    let podman_file = contents1
-        .replace("{port}", "3000")
-        .replace("{directory}", "./hello!");
-    
-    println!("{:?}", podman_file);
+    container::write_config(
+        &container_config,
+        &destination,
+    );
 
+    container::write_podman_compose(
+        &config,
+        &destination,
+    );
 
+    container::create_podmanfile(
+        &container_config,
+        &destination,
+    );
 }

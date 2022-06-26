@@ -8,4 +8,4 @@ services:
     ports:
       - {port}:{port}
     volumes:
-      - {directory}:/usr/src/file-server:z
+      - {root_dir}:/usr/share/www:z

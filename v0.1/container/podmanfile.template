@@ -1,15 +1,12 @@
 FROM rust:latest
 
-VOLUME [{}, {}]
-
-COPY /json /json/location
-
-COPY /absolute/path/of/app
-
-WORKDIR /usr/src/file-server
-
-RUN cargo install --path .
-
+VOLUME ["/usr/share/www/"]
 EXPOSE {port}
 
-CMD ["file-server"]
+COPY {config_path} /usr/share/
+ADD {config_dir} /usr/local/config
+ADD {file_server_dir} /usr/local/file-server
+
+RUN cargo install --path /usr/local/file-server/v0.1/file-server/
+
+CMD ["file-server", "/usr/share/file-server.json"]

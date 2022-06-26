@@ -4,12 +4,13 @@ use std::fs;
 use std::path;
 
 use serde_json;
-use serde::{Deserialize};
+use serde::{Serialize, Deserialize};
 
 
 static CURR_DIR_NOT_FOUND: &str = "could not find working directory";
 static CONFIG_NOT_FOUND_ERR: &str = "no config parameters were found at location";
 static JSON_FILE_ERR: &str = "config json file failed to load";
+static JSON_SERIALIZE_FAILED_ERR: &str = "config json serialization failed";
 static JSON_DESERIALIZE_FAILED_ERR: &str = "config json deserialization failed";
 static PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
 static DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
@@ -41,7 +42,7 @@ impl fmt::Display for ConfigError {
     }
 }
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub directory: path::PathBuf,
     pub port: u16,
@@ -177,4 +178,11 @@ pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
     	filepath_404: filepath_404,
     	filepath_500: filepath_500,
     })
+}
+
+pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {
+    match serde_json::to_string(config) {
+        Ok(s) => Ok(s),
+        _ => Err(ConfigError::new(JSON_SERIALIZE_FAILED_ERR))
+    }
 }
