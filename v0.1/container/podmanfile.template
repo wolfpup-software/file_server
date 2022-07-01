@@ -1,7 +1,7 @@
 FROM rust:latest
 
 VOLUME ["/usr/share/www/"]
-EXPOSE {port}
+EXPOSE [{port}]
 
 COPY {config_path} /usr/share/
 ADD {config_dir} /usr/local/config

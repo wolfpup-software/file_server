@@ -34,7 +34,7 @@ async fn main() {
                 let (status_code, pb) = match serve_file::get_pathbuff(&dir, _req) {
                 	Ok(p) => match p.starts_with(&dir) {
                     		true => (StatusCode::OK, p),
-                    		false => (StatusCode::FORBIDDEN, conf.filepath_403.clone()),
+                    		_ => (StatusCode::FORBIDDEN, conf.filepath_403.clone()),
                     	},
                     	_ => (StatusCode::NOT_FOUND, conf.filepath_404.clone()),
                 };

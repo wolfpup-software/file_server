@@ -1,0 +1,11 @@
+version: "3"
+services:
+  file-server:
+    container_name: file-server__rust_3000
+    build:
+      context: ./
+      dockerfile: file-server.podmanfile
+    ports:
+      - 3000:3000
+    volumes:
+      - /home/taylor/workspace/file-server/demo:/usr/share/www:z

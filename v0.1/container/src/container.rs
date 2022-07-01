@@ -6,6 +6,11 @@ use std::fmt;
 use config;
 
 
+static FILE_SERVER_JSON: &str = "file-server.json";
+static FAILED_TO_CONVERT_CONFIG: &str = "failed to convert config into a string";
+static FAILED_TO_CREATE_CONFIG: &str = "failed to create podmanfile";
+static FAILED_TO_WRITE_CONFIG: &str = "failed to write podmanfile";
+
 static PODMAN_COMPOSE_NOT_FOUND: &str = "podman-compose file not found";
 static PODMAN_COMPOSE_WRITE_FAILED: &str = "podman-compose file failed to write to disk";
 
@@ -37,6 +42,29 @@ pub fn get_dest_dir_from_args() -> Option<path::PathBuf> {
             }
         },
         _ => None,
+    }
+}
+
+pub fn write_config(
+    config: &config::Config,
+    destination: &path::PathBuf,
+) -> Result<(), ContainerError> {
+    let config = match config::config_to_string(&config) {
+        Ok(s) => s,
+        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_CONFIG)),
+    };
+
+    let mut target = path::PathBuf::from(destination);
+    target.push(FILE_SERVER_JSON);
+
+    let mut output = match fs::File::create(target) {
+        Ok(o) => o,
+        _ => return Err(ContainerError::new(FAILED_TO_CREATE_CONFIG)),
+    };
+
+    match output.write_all(config.as_bytes()) {
+        Ok(o) => Ok(()),
+        _ => return Err(ContainerError::new(FAILED_TO_WRITE_CONFIG)),
     }
 }
 
@@ -87,7 +115,7 @@ fn pathbuff_to_container_pathbuff(
     Ok(base_dir.join(stripped))
 }
 
-pub fn create_config(
+pub fn create_container_config(
     config: &config::Config,
     destination: &path::PathBuf,
 ) -> Result<config::Config, ContainerError> {
@@ -129,30 +157,7 @@ pub fn create_config(
     })
 }
 
-pub fn write_config(
-    config: &config::Config,
-    destination: &path::PathBuf,
-) -> Result<(), ContainerError> {
-    let config = match config::config_to_string(&config) {
-        Ok(s) => s,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
-    };
-
-    let mut target = path::PathBuf::from(destination);
-    target.push("file-server.json");
-    
-    let mut output = match fs::File::create(target) {
-        Ok(o) => o,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
-    };
-    
-    match output.write_all(config.as_bytes()) {
-        Ok(o) => Ok(()),
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED))
-    }
-}
-
-pub fn create_podmanfile(
+pub fn write_podmanfile(
     config: &config::Config,
     destination: &path::PathBuf,
 ) -> Result<(), ContainerError> {
@@ -194,11 +199,6 @@ pub fn create_podmanfile(
     };
 
     let port = format!("{}", config.port);
-    let directory = match config.directory.to_str() {
-        Some(n) => n,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
-    };
-
     let podman_compose = contents
         .replace("{port}", &port)
         .replace("{config_path}", config_json_str)

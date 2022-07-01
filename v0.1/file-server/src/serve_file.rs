@@ -98,6 +98,13 @@ const TSV_EXT: &str = "ts";
 const TSV: &str = "video/MP2T";
 
 
+fn build_error_response() -> Response<Body> {
+	Response::builder()
+		.status(StatusCode::INTERNAL_SERVER_ERROR)
+		.body(ERROR.into())
+		.unwrap()
+}
+
 fn get_content_type(request_path: &path::PathBuf) -> &str {
 	let extension = match request_path.extension() {
 		Some(ext) => {
@@ -157,13 +164,6 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 	}
 }
 
-fn error_response() -> Response<Body> {
-	Response::builder()
-		.status(StatusCode::INTERNAL_SERVER_ERROR)
-		.body(ERROR.into())
-		.unwrap()
-}
-
 pub fn get_pathbuff(
 	dir: &path::PathBuf,
 	_req: Request<Body>,
@@ -183,7 +183,7 @@ pub fn get_pathbuff(
     path.canonicalize()
 }
 
-async fn load_file(
+async fn build_response(
 	status_code: StatusCode,
 	request_path: path::PathBuf,
 ) -> Result<Response<Body>, std::io::Error> {
@@ -209,11 +209,11 @@ pub async fn serve_file(
 	pb: path::PathBuf,
 	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
-	if let Ok(response) = load_file(status_code, pb).await {
+	if let Ok(response) = build_response(status_code, pb).await {
 		return Ok(response);
 	};
 	
-	if let Ok(response) = load_file(
+	if let Ok(response) = build_response(
 		StatusCode::INTERNAL_SERVER_ERROR,
 		pb_500,
 	).await {
@@ -221,5 +221,5 @@ pub async fn serve_file(
  	};
 
 	// last ditch error
-	Ok(error_response())
+	Ok(build_error_response())
 }

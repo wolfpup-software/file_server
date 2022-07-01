@@ -1,19 +1,16 @@
 use std::env;
-use std::path;
-use std::fs;
-use std::io::Write;
 use config;
 
 mod container;
 
 
 fn main() {
-    let config_filepath = match env::args().nth(1) {
+    let config_fp = match env::args().nth(1) {
         Some(fp) => fp,
         _ => return println!("args error: config filepath not found in args"),
     };
 
-    let config = match config::get_config(&config_filepath) {
+    let config = match config::get_config(&config_fp) {
         Ok(c) => c,
         Err(e) => return println!("configuration error: {}", e),
     };
@@ -23,7 +20,7 @@ fn main() {
         _ => return println!("args error: destination directory not found."),
     };
 
-    let container_config = match container::create_config(
+    let container_config = match container::create_container_config(
         &config,
         &destination,
     ) {
@@ -41,7 +38,7 @@ fn main() {
         &destination,
     );
 
-    container::create_podmanfile(
+    container::write_podmanfile(
         &container_config,
         &destination,
     );
