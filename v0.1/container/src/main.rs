@@ -22,24 +22,29 @@ fn main() {
 
     let container_config = match container::create_container_config(
         &config,
-        &destination,
     ) {
         Ok(c) => c,
         _ => return println!("config error: failed to create container config")
     };
 
-    container::write_config(
+    if let Err(e) = container::write_config(
         &container_config,
         &destination,
-    );
+    ) {
+        return println!("{}", e);
+    };
 
-    container::write_podman_compose(
+    if let Err(e) = container::write_podman_compose(
         &config,
         &destination,
-    );
+    ) {
+        return println!("{}", e);
+    };
 
-    container::write_podmanfile(
+    if let Err(e) = container::write_podmanfile(
         &container_config,
         &destination,
-    );
+    ) {
+        return println!("{}", e);
+    };
 }

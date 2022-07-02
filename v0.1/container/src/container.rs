@@ -6,13 +6,31 @@ use std::fmt;
 use config;
 
 
+static CTNR_BASE_DIR: &str = "/usr/share/www";
+
 static FILE_SERVER_JSON: &str = "file-server.json";
 static FAILED_TO_CONVERT_CONFIG: &str = "failed to convert config into a string";
 static FAILED_TO_CREATE_CONFIG: &str = "failed to create podmanfile";
-static FAILED_TO_WRITE_CONFIG: &str = "failed to write podmanfile";
+static FAILED_TO_WRITE_CONFIG: &str = "failed to write podmanfile to disk";
 
-static PODMAN_COMPOSE_NOT_FOUND: &str = "podman-compose file not found";
-static PODMAN_COMPOSE_WRITE_FAILED: &str = "podman-compose file failed to write to disk";
+static PODMAN_COMPOSE_NOT_FOUND: &str = "podman-compose template not found";
+static FAILED_TO_CONVERT_PODMAN_COMPOSE: &str = "failed to convert config.directory to string";
+static FAILED_TO_CREATE_PODMAN_COMPOSE: &str = "failed to create podmanfile";
+static FAILED_TO_WRITE_PODMAN_COMPOSE: &str = "failed to wright podman-compose to disk";
+
+static FAILED_TO_PARSE_REL_PATH: &str = "failed to create relative path";
+
+static FAILED_TO_GET_MANIFEST_DIR: &str = "failed to get manifest dir";
+static FAILED_TO_CREATE_CONFIG_MOD_PATH: &str = "failed to create config module path";
+static FAILED_TO_CONVERT_CONFIG_MOD_PATH: &str = "failed to convert config module path";
+static FAILED_TO_CREATE_FILE_SERVER_MOD_PATH: &str = "failed to create file server module path";
+static FAILED_TO_CONVERT_FILE_SERVER_MOD_PATH: &str = "failed to convert file server module config path";
+static FAILED_TO_CREATE_JSON_PATH: &str = "failed to create config directory path";
+static FAILED_TO_CONVERT_JSON_PATH: &str = "failed to convert config directory config path";
+
+static PODMANFILE_NOT_FOUND: &str = "podman-compose template not found";
+static FAILED_TO_CREATE_PODMANFILE: &str = "failed to create podmanfile";
+static FAILED_TO_WRITE_PODMANFILE: &str = "failed to wright podman-compose to disk";
 
 
 pub struct ContainerError {
@@ -45,6 +63,62 @@ pub fn get_dest_dir_from_args() -> Option<path::PathBuf> {
     }
 }
 
+
+fn pathbuff_to_container_pathbuff(
+    directory: &path::PathBuf,
+    filepath: &path::PathBuf,
+    base_dir: &path::PathBuf,
+) -> Result<path::PathBuf, ContainerError> {
+    let fp = path::PathBuf::from(filepath);
+    let stripped = match fp.strip_prefix(directory) {
+        Ok(f) => f,
+        _ => return Err(ContainerError::new(FAILED_TO_PARSE_REL_PATH)),
+    };
+
+    Ok(base_dir.join(stripped))
+}
+
+pub fn create_container_config(
+    config: &config::Config,
+) -> Result<config::Config, ContainerError> {
+    let base_dir = path::PathBuf::from(CTNR_BASE_DIR);
+
+    let fp_403 = match pathbuff_to_container_pathbuff(
+        &config.directory,
+        &config.filepath_403,
+        &base_dir,
+    ) {
+        Ok(fp) => fp,
+        Err(e) => return Err(e),
+    };
+
+    let fp_404 = match pathbuff_to_container_pathbuff(
+        &config.directory,
+        &config.filepath_404,
+        &base_dir,
+    ) {
+        Ok(fp) => fp,
+        Err(e) => return Err(e),
+    };
+
+    let fp_500 = match pathbuff_to_container_pathbuff(
+        &config.directory,
+        &config.filepath_500,
+        &base_dir,
+    ) {
+        Ok(fp) => fp,
+        Err(e) => return Err(e),
+    };
+
+    Ok(config::Config {
+    	directory: base_dir,
+    	port: config.port,
+    	filepath_403: fp_403,
+    	filepath_404: fp_404,
+    	filepath_500: fp_500,
+    })
+}
+
 pub fn write_config(
     config: &config::Config,
     destination: &path::PathBuf,
@@ -63,7 +137,7 @@ pub fn write_config(
     };
 
     match output.write_all(config.as_bytes()) {
-        Ok(o) => Ok(()),
+        Ok(o) => Ok(o),
         _ => return Err(ContainerError::new(FAILED_TO_WRITE_CONFIG)),
     }
 }
@@ -81,7 +155,7 @@ pub fn write_podman_compose(
     let port = config.port.to_string();
     let directory = match config.directory.to_str() {
         Some(n) => n,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
+        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_PODMAN_COMPOSE)),
     };
 
     let podman_compose = contents
@@ -93,69 +167,15 @@ pub fn write_podman_compose(
     
     let mut output = match fs::File::create(target) {
         Ok(o) => o,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CREATE_PODMAN_COMPOSE)),
     };
+
     match output.write_all(podman_compose.as_bytes()) {
-        Ok(o) => Ok(()),
-        _ => Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        Ok(o) => Ok(o),
+        _ => Err(ContainerError::new(FAILED_TO_WRITE_PODMAN_COMPOSE)),
     }
 }
 
-fn pathbuff_to_container_pathbuff(
-    directory: &path::PathBuf,
-    filepath: &path::PathBuf,
-    base_dir: &path::PathBuf,
-) -> Result<path::PathBuf, ContainerError> {
-    let fp = path::PathBuf::from(filepath);
-    let stripped = match fp.strip_prefix(directory) {
-        Ok(f) => f,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
-    };
-
-    Ok(base_dir.join(stripped))
-}
-
-pub fn create_container_config(
-    config: &config::Config,
-    destination: &path::PathBuf,
-) -> Result<config::Config, ContainerError> {
-    let base_dir = path::PathBuf::from("/usr/share/www");
-
-    let fp_403 = match pathbuff_to_container_pathbuff(
-        &config.directory,
-        &config.filepath_403,
-        &base_dir,
-    ) {
-        Ok(fp) => fp,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
-    };
-
-    let fp_404 = match pathbuff_to_container_pathbuff(
-        &config.directory,
-        &config.filepath_404,
-        &base_dir,
-    ) {
-        Ok(fp) => fp,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
-    };
-
-    let fp_500 = match pathbuff_to_container_pathbuff(
-        &config.directory,
-        &config.filepath_500,
-        &base_dir,
-    ) {
-        Ok(fp) => fp,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
-    };
-
-    Ok(config::Config {
-    	directory: base_dir,
-    	port: config.port,
-    	filepath_403: fp_403,
-    	filepath_404: fp_404,
-    	filepath_500: fp_500,
-    })
-}
 
 pub fn write_podmanfile(
     config: &config::Config,
@@ -163,42 +183,42 @@ pub fn write_podmanfile(
 ) -> Result<(), ContainerError> {
     let repo_dir = match env::var("CARGO_MANIFEST_DIR") {
         Ok(p) => path::PathBuf::from(p),
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_GET_MANIFEST_DIR)),
     };
 
     let config_dir = match repo_dir.join("../config").canonicalize() { 
         Ok(p) => p,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CREATE_CONFIG_MOD_PATH)),
     };
     let config_dir_str = match config_dir.to_str() { 
         Some(s) => s,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_CONFIG_MOD_PATH)),
     };
 
     let file_server_dir = match repo_dir.join("../file-server").canonicalize() { 
         Ok(p) => p,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CREATE_FILE_SERVER_MOD_PATH)),
     };
     let file_server_dir_str = match file_server_dir.to_str() { 
         Some(s) => s,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_FILE_SERVER_MOD_PATH)),
     };
 
     let config_json = match destination.join("file-server.json").canonicalize() {
         Ok(c) => c,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CREATE_JSON_PATH)),
     };
     let config_json_str = match config_json.to_str() { 
         Some(s) => s,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_JSON_PATH)),
     };
 
     let contents = match fs::read_to_string("podmanfile.template") {
         Ok(c) => c,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
+        _ => return Err(ContainerError::new(PODMANFILE_NOT_FOUND)),
     };
 
-    let port = format!("{}", config.port);
+    let port = config.port.to_string();
     let podman_compose = contents
         .replace("{port}", &port)
         .replace("{config_path}", config_json_str)
@@ -210,9 +230,11 @@ pub fn write_podmanfile(
 
     let mut output = match fs::File::create(target) {
         Ok(o) => o,
-        _ => return Err(ContainerError::new(PODMAN_COMPOSE_WRITE_FAILED)),
+        _ => return Err(ContainerError::new(FAILED_TO_CREATE_PODMANFILE)),
     };
-    output.write_all(podman_compose.as_bytes());
 
-    Ok(())
+    match output.write_all(podman_compose.as_bytes()) {
+        Ok(o) => Ok(o),
+        _ => Err(ContainerError::new(FAILED_TO_WRITE_PODMANFILE)),
+    }
 }
