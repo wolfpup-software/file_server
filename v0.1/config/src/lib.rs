@@ -9,20 +9,21 @@ use serde::{Serialize, Deserialize};
 
 static CURR_DIR_NOT_FOUND: &str = "could not find working directory";
 static CONFIG_NOT_FOUND_ERR: &str = "no config parameters were found at location";
+
 static JSON_FILE_ERR: &str = "config json file failed to load";
 static JSON_SERIALIZE_FAILED_ERR: &str = "config json serialization failed";
 static JSON_DESERIALIZE_FAILED_ERR: &str = "config json deserialization failed";
+
 static PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
+
 static DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
 static DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
+
 static FILE_403_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
-static FILE_403_NOT_A_FILE_ERR: &str = "config.filepath_403 is not a file";
 static FILE_403_OUT_OF_BOUNDS_ERR: &str = "config.filepath_403 is not located in the base directory";
 static FILE_404_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
-static FILE_404_NOT_A_FILE_ERR: &str = "config.filepath_404 is not a file";
 static FILE_404_OUT_OF_BOUNDS_ERR: &str = "config.filepath_404 is not located in the base directory";
 static FILE_500_NOT_FOUND_ERR: &str = "config.filepath_500 was not found";
-static FILE_500_NOT_A_FILE_ERR: &str = "config.filepath_500 is not a file";
 static FILE_500_OUT_OF_BOUNDS_ERR: &str = "config.filepath_500 is not located in the base directory";
 
 
@@ -81,16 +82,12 @@ fn validate_filepath(
 	pb: &path::PathBuf,
 	base_dir: &path::PathBuf,
 	not_found_err: &str,
-	file_err: &str,
 	bound_err: &str,
 ) -> Result<path::PathBuf, ConfigError> {
     let fp = match get_file_pathbuff(rel_dir, pb) {
         Ok(j) => j,
         _ => return Err(ConfigError::new(not_found_err)),
     };
-    if !fp.is_file() {
-        return Err(ConfigError::new(file_err));
-    }
     if !fp.starts_with(base_dir) {
         return Err(ConfigError::new(bound_err));
     }
@@ -140,7 +137,6 @@ pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
     	&config.filepath_403,
     	&directory,
     	FILE_403_NOT_FOUND_ERR,
-    	FILE_403_NOT_A_FILE_ERR,
     	FILE_403_OUT_OF_BOUNDS_ERR,
     ) {
         Ok(j) => j,
@@ -152,7 +148,6 @@ pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
     	&config.filepath_404,
     	&directory,
     	FILE_404_NOT_FOUND_ERR,
-    	FILE_404_NOT_A_FILE_ERR,
     	FILE_404_OUT_OF_BOUNDS_ERR,
     ) {
         Ok(j) => j,
@@ -164,7 +159,6 @@ pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
     	&config.filepath_500,
     	&directory,
     	FILE_500_NOT_FOUND_ERR,
-    	FILE_500_NOT_A_FILE_ERR,
     	FILE_500_OUT_OF_BOUNDS_ERR,
     ) {
         Ok(j) => j,
