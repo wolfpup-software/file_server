@@ -10,7 +10,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 
 static INDEX: &str = "index";
 static FWD_SLASH: &str = "/";
-static ERROR: &[u8] = b"500 Internal Server Error";
+static ERROR: &str = "500 Internal Server Error";
 
 // TEXT
 const CSS_EXT: &str = "css";
@@ -98,11 +98,9 @@ const TSV_EXT: &str = "ts";
 const TSV: &str = "video/MP2T";
 
 
-fn build_error_response() -> Response<Body> {
-	Response::builder()
-		.status(StatusCode::INTERNAL_SERVER_ERROR)
-		.body(ERROR.into())
-		.unwrap()
+fn error_response() -> Response<Body> {
+	let mut response: Response<Body> = Response::new(ERROR.into());
+	*response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
 }
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
@@ -183,25 +181,19 @@ pub fn get_pathbuff(
     path.canonicalize()
 }
 
-async fn build_response(
+async fn load_file(
 	status_code: StatusCode,
 	request_path: path::PathBuf,
-) -> Result<Response<Body>, std::io::Error> {
-	match File::open(&request_path).await {
-		Ok(file) => {
-			let content_type = get_content_type(&request_path);
-			let stream = FramedRead::new(file, BytesCodec::new());
-			let body = Body::wrap_stream(stream);
-			let response = Response::builder()
-				.status(status_code)
-				.header(CONTENT_TYPE, content_type)
-				.body(body)
-				.unwrap();
-			
-			Ok(response)
-		},
-		Err(e) => Err(e),
-	}
+	file: File,
+) -> Result<Response<Body>, hyper::http::Error> {
+	let content_type = get_content_type(&request_path);
+	let stream = FramedRead::new(file, BytesCodec::new());
+	let body = Body::wrap_stream(stream);
+
+	Response::builder()
+		.status(status_code)
+		.header(CONTENT_TYPE, content_type)
+		.body(body)
 }
 
 pub async fn serve_file(
@@ -209,17 +201,22 @@ pub async fn serve_file(
 	pb: path::PathBuf,
 	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
-	if let Ok(response) = build_response(status_code, pb).await {
-		return Ok(response);
+	if let Ok(file) = File::open(&pb).await {
+		if let Ok(response) = load_file(status_code, pb, file).await {
+			return Ok(response);
+		}
 	};
-	
-	if let Ok(response) = build_response(
-		StatusCode::INTERNAL_SERVER_ERROR,
-		pb_500,
-	).await {
-  		return Ok(response);
- 	};
+
+	if let Ok(file) = File::open(&pb_500).await {
+		if let Ok(response) = load_file(
+			StatusCode::INTERNAL_SERVER_ERROR,
+			pb_500,
+			file,
+		).await {
+			return Ok(response);
+		}
+	};
 
 	// last ditch error
-	Ok(build_error_response())
+	Ok(error_response())
 }
