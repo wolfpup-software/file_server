@@ -1,0 +1,8 @@
+{
+    "host": "0.0.0.0",
+    "port": 3000,
+    "directory": "../docs",
+    "filepath_403": "../docs/403.html",
+    "filepath_404": "../docs/404.html",
+    "filepath_500": "../docs/500.html"
+}

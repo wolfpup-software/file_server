@@ -1,11 +1,11 @@
 FROM rust:latest
 
 VOLUME ["/usr/share/www/"]
-EXPOSE [{port}]
+EXPOSE 3000
 
-COPY {config_json_path} /usr/share/
-ADD {config_mod_dir} /usr/local/config
-ADD {file_server_mod_dir} /usr/local/file-server
+COPY ./file-server.json /usr/share/
+ADD ./config /usr/local/config
+ADD ./file-server /usr/local/file-server
 
 RUN cargo install --path /usr/local/file-server/v0.1/file-server/
 

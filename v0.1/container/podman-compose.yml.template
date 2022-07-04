@@ -1,11 +1,11 @@
 version: "3"
 services:
   file-server:
-    container_name: file-server__rust_{port}
+    container_name: file_server__rust_{port}
     build:
       context: ./
       dockerfile: file-server.podmanfile
     ports:
-      - {port}:{port}
+      - "{host}:{port}:3000"
     volumes:
-      - {root_dir}:/usr/share/www:z
+      - {root_dir}:/usr/share/www:ro

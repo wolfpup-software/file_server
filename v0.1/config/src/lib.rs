@@ -45,11 +45,94 @@ impl fmt::Display for ConfigError {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
-    pub address: String,
+    pub host: String,
+    pub port: usize,
     pub directory: path::PathBuf,
     pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
     pub filepath_500: path::PathBuf,
+}
+
+impl Config {
+    pub fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigError> {
+        let curr_dir = match env::current_dir() {
+            Ok(pb) => pb,
+            _ => return Err(ConfigError::new(CURR_DIR_NOT_FOUND))
+        };
+        
+        println!("{:?}", curr_dir);
+        let config_pathbuff = match get_config_pathbuff(curr_dir, filepath) {
+            Ok(pb) => pb,
+            _ => return Err(ConfigError::new(CONFIG_NOT_FOUND_ERR)),
+        };
+    
+        let json_as_str = match fs::read_to_string(&config_pathbuff) {
+            Ok(r) => r,
+            _ => return Err(ConfigError::new(JSON_FILE_ERR)),
+        };
+    
+        // build config from json string
+        let config: Config = match serde_json::from_str(&json_as_str) {
+            Ok(j) => j,
+            _ => return Err(ConfigError::new(JSON_DESERIALIZE_FAILED_ERR)),
+        };
+        
+        let parent = match config_pathbuff.parent() {
+            Some(p) => p,
+            _ => return Err(ConfigError::new(PARENT_NOT_FOUND_ERR))
+        };
+        
+        let directory = match get_file_pathbuff(&parent, &config.directory) {
+            Ok(j) => j,
+            _ => return Err(ConfigError::new(DIR_TARGET_NOT_FOUND_ERR)),
+        };
+        if !directory.is_dir() {
+            return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
+        }
+    
+        // create config with absolute filepaths from client config
+        let filepath_403 = match validate_filepath(
+            &parent,
+            &config.filepath_403,
+            &directory,
+            FILE_403_NOT_FOUND_ERR,
+            FILE_403_OUT_OF_BOUNDS_ERR,
+        ) {
+            Ok(j) => j,
+            Err(e) => return Err(e),
+        };
+        
+        let filepath_404 = match validate_filepath(
+            &parent,
+            &config.filepath_404,
+            &directory,
+            FILE_404_NOT_FOUND_ERR,
+            FILE_404_OUT_OF_BOUNDS_ERR,
+        ) {
+            Ok(j) => j,
+            Err(e) => return Err(e),
+        };
+        
+        let filepath_500 = match validate_filepath(
+            &parent,
+            &config.filepath_500,
+            &directory,
+            FILE_500_NOT_FOUND_ERR,
+            FILE_500_OUT_OF_BOUNDS_ERR,
+        ) {
+            Ok(j) => j,
+            Err(e) => return Err(e),
+        };
+        
+        Ok(Config {
+            host: config.host,
+            port: config.port,
+            directory: directory,
+            filepath_403: filepath_403,
+            filepath_404: filepath_404,
+            filepath_500: filepath_500,
+        })
+    }
 }
 
 pub struct ServerConfig {
@@ -60,7 +143,7 @@ pub struct ServerConfig {
 }
 
 impl ServerConfig {
-    fn from_config(config: &Config) -> ServerConfig {
+    pub fn from_config(config: &Config) -> ServerConfig {
         ServerConfig {
             directory: config.directory.clone(),
             filepath_403: config.filepath_403.clone(),
@@ -82,7 +165,7 @@ pub fn get_file_pathbuff(
 
 pub fn get_config_pathbuff(
 	dir: path::PathBuf,
-	filepath: &str,
+	filepath: &path::PathBuf,
 ) -> Result<path::PathBuf, std::io::Error> {
     let mut fp = path::PathBuf::from(&dir);
     fp.push(filepath);
@@ -106,86 +189,6 @@ fn validate_filepath(
     }
     
     Ok(fp)
-}
-
-pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
-	// get json from filepath
-    let curr_dir = match env::current_dir() {
-        Ok(pb) => pb,
-        _ => return Err(ConfigError::new(CURR_DIR_NOT_FOUND))
-    };
-    
-    println!("{:?}", curr_dir);
-    let config_pathbuff = match get_config_pathbuff(curr_dir, filepath) {
-        Ok(pb) => pb,
-        _ => return Err(ConfigError::new(CONFIG_NOT_FOUND_ERR)),
-    };
-
-    let json_as_str = match fs::read_to_string(&config_pathbuff) {
-        Ok(r) => r,
-        _ => return Err(ConfigError::new(JSON_FILE_ERR)),
-    };
-
-	// build config from json string
-    let config: Config = match serde_json::from_str(&json_as_str) {
-        Ok(j) => j,
-        _ => return Err(ConfigError::new(JSON_DESERIALIZE_FAILED_ERR)),
-    };
-    
-    let parent = match config_pathbuff.parent() {
-    	Some(p) => p,
-    	_ => return Err(ConfigError::new(PARENT_NOT_FOUND_ERR))
-    };
-    
-    let directory = match get_file_pathbuff(&parent, &config.directory) {
-        Ok(j) => j,
-        _ => return Err(ConfigError::new(DIR_TARGET_NOT_FOUND_ERR)),
-    };
-    if !directory.is_dir() {
-        return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
-    }
-
-	// create config with absolute filepaths from client config
-    let filepath_403 = match validate_filepath(
-    	&parent,
-    	&config.filepath_403,
-    	&directory,
-    	FILE_403_NOT_FOUND_ERR,
-    	FILE_403_OUT_OF_BOUNDS_ERR,
-    ) {
-        Ok(j) => j,
-        Err(e) => return Err(e),
-    };
-    
-    let filepath_404 = match validate_filepath(
-    	&parent,
-    	&config.filepath_404,
-    	&directory,
-    	FILE_404_NOT_FOUND_ERR,
-    	FILE_404_OUT_OF_BOUNDS_ERR,
-    ) {
-        Ok(j) => j,
-        Err(e) => return Err(e),
-    };
-    
-    let filepath_500 = match validate_filepath(
-    	&parent,
-    	&config.filepath_500,
-    	&directory,
-    	FILE_500_NOT_FOUND_ERR,
-    	FILE_500_OUT_OF_BOUNDS_ERR,
-    ) {
-        Ok(j) => j,
-        Err(e) => return Err(e),
-    };
-    
-    Ok(Config {
-    	directory: directory,
-    	address: config.address,
-    	filepath_403: filepath_403,
-    	filepath_404: filepath_404,
-    	filepath_500: filepath_500,
-    })
 }
 
 pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {
