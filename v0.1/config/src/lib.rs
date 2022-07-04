@@ -45,36 +45,49 @@ impl fmt::Display for ConfigError {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub address: String,
     pub directory: path::PathBuf,
-    pub port: u16,
     pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
     pub filepath_500: path::PathBuf,
 }
 
+pub struct ServerConfig {
+    pub directory: path::PathBuf,
+    pub filepath_403: path::PathBuf,
+    pub filepath_404: path::PathBuf,
+    pub filepath_500: path::PathBuf,
+}
+
+impl ServerConfig {
+    fn from_config(config: &Config) -> ServerConfig {
+        ServerConfig {
+            directory: config.directory.clone(),
+            filepath_403: config.filepath_403.clone(),
+            filepath_404: config.filepath_404.clone(),
+            filepath_500: config.filepath_500.clone(),
+        }
+    }
+}
 
 pub fn get_file_pathbuff(
 	dir: &path::Path,
 	filepath: &path::PathBuf,
 ) -> Result<path::PathBuf, std::io::Error> {
-    let fp = path::PathBuf::from(&filepath);
-    if fp.has_root() {
-        return Ok(fp);
-    }
+    let mut fp = path::PathBuf::from(&dir);
+    fp.push(filepath);
 
-    dir.join(fp).canonicalize()
+    fp.canonicalize()
 }
 
 pub fn get_config_pathbuff(
 	dir: path::PathBuf,
 	filepath: &str,
 ) -> Result<path::PathBuf, std::io::Error> {
-    let fp = path::PathBuf::from(&filepath);
-    if fp.has_root() {
-        return Ok(fp);
-    }
+    let mut fp = path::PathBuf::from(&dir);
+    fp.push(filepath);
 
-    dir.join(fp).canonicalize()
+    fp.canonicalize()
 }
 
 fn validate_filepath(
@@ -102,6 +115,7 @@ pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
         _ => return Err(ConfigError::new(CURR_DIR_NOT_FOUND))
     };
     
+    println!("{:?}", curr_dir);
     let config_pathbuff = match get_config_pathbuff(curr_dir, filepath) {
         Ok(pb) => pb,
         _ => return Err(ConfigError::new(CONFIG_NOT_FOUND_ERR)),
@@ -167,7 +181,7 @@ pub fn get_config(filepath: &str) -> Result<Config, ConfigError> {
     
     Ok(Config {
     	directory: directory,
-    	port: config.port,
+    	address: config.address,
     	filepath_403: filepath_403,
     	filepath_404: filepath_404,
     	filepath_500: filepath_500,
@@ -179,4 +193,8 @@ pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {
         Ok(s) => Ok(s),
         _ => Err(ConfigError::new(JSON_SERIALIZE_FAILED_ERR))
     }
+}
+
+pub fn config_to_server_config(config: &Config) -> ServerConfig {
+    ServerConfig::from_config(config)
 }
