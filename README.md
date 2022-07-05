@@ -99,10 +99,10 @@ bash build_container_files.sh <destination directory> <json config filepath>
 
 Run the following script to create a container that serves the `file-server` demo:
 ```
-mkdir ./file-server/ctnr/
-bash ./file-server/v0.1/build_container_files.sh \
-  ./file-server/ctnr \
-  ./file-server/v0.1/file-server.json.example
+mkdir file-server/ctnr/
+bash file-server/v0.1/build_container_files.sh \
+  file-server/ctnr \
+  file-server/v0.1/file-server.json.example
 ```
 
 #### Deploy container
