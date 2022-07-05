@@ -135,16 +135,16 @@ impl Config {
     }
 }
 
-pub struct ServerConfig {
+pub struct ServiceConfig {
     pub directory: path::PathBuf,
     pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
     pub filepath_500: path::PathBuf,
 }
 
-impl ServerConfig {
-    pub fn from_config(config: &Config) -> ServerConfig {
-        ServerConfig {
+impl ServiceConfig {
+    pub fn from_config(config: &Config) -> ServiceConfig {
+        ServiceConfig {
             directory: config.directory.clone(),
             filepath_403: config.filepath_403.clone(),
             filepath_404: config.filepath_404.clone(),
@@ -196,8 +196,4 @@ pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {
         Ok(s) => Ok(s),
         _ => Err(ConfigError::new(JSON_SERIALIZE_FAILED_ERR))
     }
-}
-
-pub fn config_to_server_config(config: &Config) -> ServerConfig {
-    ServerConfig::from_config(config)
 }

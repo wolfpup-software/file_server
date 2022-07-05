@@ -33,7 +33,7 @@ async fn main() {
 
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
-        let conf = config.clone();
+        let conf = config::ServiceConfig::from_config(&config);
         
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
