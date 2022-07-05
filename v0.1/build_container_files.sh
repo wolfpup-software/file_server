@@ -1,15 +1,16 @@
+# build_container_files
+# brian taylor vann
+#
+# args ($1: destination) ($2: config_filepath)
+
+
 curr_dir=`dirname $0`
+
 config_path=$curr_dir/config
 file_server_path=$curr_dir/file-server
 podmanfile_path=$curr_dir/container/file-server.podmanfile
 podman_compose_path=$curr_dir/container/podman-compose.yml.template
 container_path=$curr_dir/container/Cargo.toml
-
-echo $config_path
-echo $file_server_path
-echo $container_path
-echo $podman_compose_path
-
 
 # if destination does not exist, don't make anything
 if ! [ -d $1 ]; then
@@ -29,6 +30,5 @@ fi
 
 cp $podmanfile_path $1
 
-
-# ($1: destination) ($2: config_filepath) ($3: podman-compose template)
+# ($1: destination) ($2: config_filepath) ($3: podman-compose_template_filepath)
 cargo run --manifest-path $container_path $1 $2 $podman_compose_path

@@ -8,4 +8,4 @@ services:
     ports:
       - "{host}:{port}:3000"
     volumes:
-      - {root_dir}:/usr/share/www:ro
+      - {directory}:/usr/share/www:ro

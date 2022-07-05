@@ -4,8 +4,8 @@ use std::path;
 
 use hyper::{Body, Request, Response, StatusCode};
 use hyper::header::CONTENT_TYPE;
-use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use tokio::fs::File;
 
 
 static INDEX: &str = "index";
@@ -98,9 +98,11 @@ const TSV_EXT: &str = "ts";
 const TSV: &str = "video/MP2T";
 
 
-fn error_response() -> Response<Body> {
+fn response_500() -> Response<Body> {
 	let mut response: Response<Body> = Response::new(ERROR.into());
 	*response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+
+	response
 }
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
@@ -115,14 +117,11 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 	};
 
 	match extension {
-		// many per page
 		CSS_EXT => CSS,
 		JS_EXT => JS,
 		JSON_EXT => JSON,
 		TSV_EXT => TSV,
 		M3U8_EXT => M3U8,
-
-		// several per page
 		SVG_EXT => SVG,
 		PNG_EXT => PNG,
 		PDF_EXT => PDF,
@@ -133,13 +132,9 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 		WOFF_EXT => WOFF,
 		WOFF2_EXT => WOFF2,
 		OTF_EXT => OTF,
-
-		// one per page
 		HTML_EXT => HTML,
 		GZIP_EXT => GZIP,
 		ICO_EXT => ICO,
-
-		// otherwise
 		AAC_EXT => AAC,
 		BMP_EXT => BMP,
 		CSV_EXT => CSV,
@@ -201,12 +196,14 @@ pub async fn serve_file(
 	pb: path::PathBuf,
 	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
+	// attempt to serve file
 	if let Ok(file) = File::open(&pb).await {
 		if let Ok(response) = load_file(status_code, pb, file).await {
 			return Ok(response);
 		}
 	};
 
+	// custom 500
 	if let Ok(file) = File::open(&pb_500).await {
 		if let Ok(response) = load_file(
 			StatusCode::INTERNAL_SERVER_ERROR,
@@ -217,6 +214,6 @@ pub async fn serve_file(
 		}
 	};
 
-	// last ditch error
-	Ok(error_response())
+	// oh no 500
+	Ok(response_500())
 }

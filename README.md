@@ -1,8 +1,8 @@
-# File-server
+# file-server
 
-An `http` file server written in rust using [hyper]() and [tokio]().
+An `http` file server written in rust using [tokio](https://tokio.rs/) and [hyper](https://hyper.rs/).
 
-### Create a config
+## Create a config
 
 A JSON configuration file is required to run `file-server` or create a `file-server` container.
 
@@ -42,8 +42,7 @@ of this repository: `file-server.json.example`
 }
 ```
 
-
-### Install file-server
+## Install file-server
 
 Execute the following to install `file-server`.
 
@@ -53,7 +52,7 @@ cd file-server/v0.1/file-server
 cargo install .
 ```
 
-### Run file-server
+## Run file-server
 
 `file-server` accepts one argument:
 - A valid `file-server` JSON configuration file
@@ -70,7 +69,7 @@ file-server ../../file-server.json.example
 
 Open a browser and visit `http://localhost:3000`.
 
-### Create file-server container
+## File-server containers
 
 A utility script is provided to build containers with `podman`.
 
@@ -122,7 +121,7 @@ podman-compose -f ./file-server.podman-compose.yml build
 
 To up the container:
 ```
-podman-compose -f ./file-server.podman-compose.yml up
+podman-compose -f ./file-server.podman-compose.yml up -d
 ```
 
 To down the container:

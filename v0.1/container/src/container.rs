@@ -168,7 +168,7 @@ pub fn write_podman_compose(
     let podman_compose = contents
         .replace("{host}", &config.host)
         .replace("{port}", &config.port.to_string())
-        .replace("{root_dir}", directory);
+        .replace("{directory}", directory);
 
     let mut target = path::PathBuf::from(destination);
     target.push(PODMAN_COMPOSE_TARGET);

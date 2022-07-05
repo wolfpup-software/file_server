@@ -46,7 +46,7 @@ impl fmt::Display for ConfigError {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub host: String,
-    pub port: usize,
+    pub port: u16,
     pub directory: path::PathBuf,
     pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
