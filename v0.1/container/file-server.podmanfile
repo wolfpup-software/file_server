@@ -7,6 +7,6 @@ COPY ./file-server.json /usr/share/
 ADD ./config /usr/local/config
 ADD ./file-server /usr/local/file-server
 
-RUN cargo install --path /usr/local/file-server/v0.1/file-server/
+RUN cargo install --path /usr/local/file-server/
 
-CMD ["file-server", "/usr/share/file-server.json"]
+CMD ["hbt_file-server", "/usr/share/file-server.json"]

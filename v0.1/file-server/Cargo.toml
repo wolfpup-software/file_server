@@ -1,5 +1,5 @@
 [package]
-name = "hxt_file-server"
+name = "hbt_file-server"
 version = "0.1.0"
 edition = "2021"
 
