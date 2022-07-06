@@ -29,7 +29,7 @@ async fn main() {
         _ => return println!("configuration error: unable to parse host."),
     };
 
-    let port = config.port;
+    let addr = net::SocketAddr::new(host, config.port);
 
     // create function for server (hyper::Server)
     let file_service = make_service_fn(|_| {
@@ -51,10 +51,7 @@ async fn main() {
     });
 
     // run server
-    let addr = net::SocketAddr::new(host, port);
-    let server = Server::bind(&addr);
-    
-    if let Err(e) = server.serve(file_service).await {
+    if let Err(e) = Server::bind(&addr).serve(file_service).await {
         println!("server error: {}", e);
     }
 }

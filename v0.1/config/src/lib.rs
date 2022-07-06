@@ -55,34 +55,34 @@ pub struct Config {
 
 impl Config {
     pub fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigError> {
-        let curr_dir = match env::current_dir() {
+        // get position relative to working directory
+        let working_dir = match env::current_dir() {
             Ok(pb) => pb,
             _ => return Err(ConfigError::new(CURR_DIR_NOT_FOUND))
         };
         
-        println!("{:?}", curr_dir);
-        let config_pathbuff = match get_config_pathbuff(curr_dir, filepath) {
+        let config_pathbuff = match combine_pathbuff(&working_dir.to_path_buf(), filepath) {
             Ok(pb) => pb,
             _ => return Err(ConfigError::new(CONFIG_NOT_FOUND_ERR)),
         };
+
+        let parent_dir = match config_pathbuff.parent() {
+            Some(p) => p.to_path_buf(),
+            _ => return Err(ConfigError::new(PARENT_NOT_FOUND_ERR))
+        };
     
+        // build json conifg
         let json_as_str = match fs::read_to_string(&config_pathbuff) {
             Ok(r) => r,
             _ => return Err(ConfigError::new(JSON_FILE_ERR)),
         };
     
-        // build config from json string
         let config: Config = match serde_json::from_str(&json_as_str) {
             Ok(j) => j,
             _ => return Err(ConfigError::new(JSON_DESERIALIZE_FAILED_ERR)),
         };
         
-        let parent = match config_pathbuff.parent() {
-            Some(p) => p,
-            _ => return Err(ConfigError::new(PARENT_NOT_FOUND_ERR))
-        };
-        
-        let directory = match get_file_pathbuff(&parent, &config.directory) {
+        let directory = match combine_pathbuff(&parent_dir, &config.directory) {
             Ok(j) => j,
             _ => return Err(ConfigError::new(DIR_TARGET_NOT_FOUND_ERR)),
         };
@@ -92,7 +92,7 @@ impl Config {
     
         // create config with absolute filepaths from client config
         let filepath_403 = match validate_filepath(
-            &parent,
+            &parent_dir,
             &config.filepath_403,
             &directory,
             FILE_403_NOT_FOUND_ERR,
@@ -103,7 +103,7 @@ impl Config {
         };
         
         let filepath_404 = match validate_filepath(
-            &parent,
+            &parent_dir,
             &config.filepath_404,
             &directory,
             FILE_404_NOT_FOUND_ERR,
@@ -114,7 +114,7 @@ impl Config {
         };
         
         let filepath_500 = match validate_filepath(
-            &parent,
+            &parent_dir,
             &config.filepath_500,
             &directory,
             FILE_500_NOT_FOUND_ERR,
@@ -153,42 +153,33 @@ impl ServiceConfig {
     }
 }
 
-pub fn get_file_pathbuff(
-	dir: &path::Path,
+pub fn combine_pathbuff(
+	base_dir: &path::PathBuf,
 	filepath: &path::PathBuf,
 ) -> Result<path::PathBuf, std::io::Error> {
-    let mut fp = path::PathBuf::from(&dir);
-    fp.push(filepath);
-
-    fp.canonicalize()
-}
-
-pub fn get_config_pathbuff(
-	dir: path::PathBuf,
-	filepath: &path::PathBuf,
-) -> Result<path::PathBuf, std::io::Error> {
-    let mut fp = path::PathBuf::from(&dir);
+    let mut fp = path::PathBuf::from(&base_dir);
     fp.push(filepath);
 
     fp.canonicalize()
 }
 
 fn validate_filepath(
-	rel_dir: &path::Path,
+	parent_dir: &path::PathBuf,
 	pb: &path::PathBuf,
 	base_dir: &path::PathBuf,
 	not_found_err: &str,
 	bound_err: &str,
 ) -> Result<path::PathBuf, ConfigError> {
-    let fp = match get_file_pathbuff(rel_dir, pb) {
-        Ok(j) => j,
+    match combine_pathbuff(parent_dir, pb) {
+        Ok(fp) => {
+            if fp.starts_with(base_dir) {
+                return Ok(fp);
+            }
+
+            Err(ConfigError::new(bound_err))
+        },
         _ => return Err(ConfigError::new(not_found_err)),
-    };
-    if !fp.starts_with(base_dir) {
-        return Err(ConfigError::new(bound_err));
     }
-    
-    Ok(fp)
 }
 
 pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {

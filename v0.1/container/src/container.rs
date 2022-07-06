@@ -39,49 +39,11 @@ impl fmt::Display for ContainerError {
 }
 
 
-pub fn get_dest_dir_from_args(index: usize) -> Option<path::PathBuf> {
-    // get destination
+pub fn get_pathbuff_from_args(index: usize) -> Option<path::PathBuf> {
     match env::args().nth(index) {
-        Some(c) => {
-            let p = path::PathBuf::from(c);
-            println!("get_dest_dir: {:?}", p);
-            match p.is_dir() {
-                true => Some(p),
-                _ => None,
-            }
-        },
+        Some(c) => Some(path::PathBuf::from(c)),
         _ => None,
     }
-}
-
-pub fn get_dest_filepath_from_args(index: usize) -> Option<path::PathBuf> {
-    // get destination
-    match env::args().nth(index) {
-        Some(c) => {
-            let p = path::PathBuf::from(c);
-            println!("get_dest_dir: {:?}", p);
-            match p.is_file() {
-                true => Some(p),
-                _ => None,
-            }
-        },
-        _ => None,
-    }
-}
-
-
-fn pathbuff_to_container_pathbuff(
-    directory: &path::PathBuf,
-    filepath: &path::PathBuf,
-    base_dir: &path::PathBuf,
-) -> Result<path::PathBuf, ContainerError> {
-    let fp = path::PathBuf::from(filepath);
-    let stripped = match fp.strip_prefix(directory) {
-        Ok(f) => f,
-        _ => return Err(ContainerError::new(FAILED_TO_PARSE_REL_PATH)),
-    };
-
-    Ok(base_dir.join(stripped))
 }
 
 pub fn create_container_config(
@@ -126,15 +88,21 @@ pub fn create_container_config(
     })
 }
 
-pub fn write_config(
-    config: &config::Config,
-    destination: &path::PathBuf,
-) -> Result<(), ContainerError> {
-    let config = match config::config_to_string(&config) {
-        Ok(s) => s,
-        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_CONFIG)),
-    };
+fn pathbuff_to_container_pathbuff(
+    directory: &path::PathBuf,
+    filepath: &path::PathBuf,
+    base_dir: &path::PathBuf,
+) -> Result<path::PathBuf, ContainerError> {
+    match filepath.strip_prefix(directory) {
+        Ok(pb) => Ok(base_dir.join(pb)),
+        _ => Err(ContainerError::new(FAILED_TO_PARSE_REL_PATH)),
+    }
+}
 
+pub fn write_config(
+    destination: &path::PathBuf,
+    config: &config::Config,
+) -> Result<(), ContainerError> {
     let mut target = path::PathBuf::from(destination);
     target.push(FILE_SERVER_JSON_TARGET);
 
@@ -143,16 +111,20 @@ pub fn write_config(
         _ => return Err(ContainerError::new(FAILED_TO_CREATE_CONFIG)),
     };
 
+    let config = match config::config_to_string(&config) {
+        Ok(s) => s,
+        _ => return Err(ContainerError::new(FAILED_TO_CONVERT_CONFIG)),
+    };
+
     match output.write_all(config.as_bytes()) {
         Ok(o) => Ok(o),
         _ => return Err(ContainerError::new(FAILED_TO_WRITE_CONFIG)),
     }
 }
 
-// container error
 pub fn write_podman_compose(
-    config: &config::Config,
     destination: &path::PathBuf,
+    config: &config::Config,
     podman_compose_filepath: &path::PathBuf,
 ) -> Result<(), ContainerError> {
     let contents = match fs::read_to_string(podman_compose_filepath) {
@@ -165,11 +137,6 @@ pub fn write_podman_compose(
         _ => return Err(ContainerError::new(FAILED_TO_CONVERT_PODMAN_COMPOSE)),
     };
 
-    let podman_compose = contents
-        .replace("{host}", &config.host)
-        .replace("{port}", &config.port.to_string())
-        .replace("{directory}", directory);
-
     let mut target = path::PathBuf::from(destination);
     target.push(PODMAN_COMPOSE_TARGET);
     
@@ -177,6 +144,11 @@ pub fn write_podman_compose(
         Ok(o) => o,
         _ => return Err(ContainerError::new(FAILED_TO_CREATE_PODMAN_COMPOSE)),
     };
+
+    let podman_compose = contents
+        .replace("{host}", &config.host)
+        .replace("{port}", &config.port.to_string())
+        .replace("{directory}", directory);
 
     match output.write_all(podman_compose.as_bytes()) {
         Ok(o) => Ok(o),
