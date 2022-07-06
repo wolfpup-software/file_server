@@ -10,12 +10,12 @@ Configuration files are expected to use use the following schema:
 
 ```json
 {
-  "host": "<string>",
-  "port": "<number>",
-  "directory": "<string>",
-  "filepath_403": "<string>",
-  "filepath_404": "<string>",
-  "filepath_500": "<string>"
+  "host": <string>,
+  "port": <number>,
+  "directory": <string>,
+  "filepath_403": <string>,
+  "filepath_404": <string>,
+  "filepath_500": <string>
 }
 ```
 
