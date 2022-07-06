@@ -8,7 +8,7 @@ A JSON configuration file is required to run `hbt_file-server` or create a `hbt_
 
 Configuration files are expected to use use the following schema:
 
-```json
+```
 {
   "host": <string>,
   "port": <number>,
