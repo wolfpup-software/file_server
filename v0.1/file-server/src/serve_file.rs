@@ -3,14 +3,14 @@ use std::io;
 use std::path;
 
 use hyper::{Body, Request, Response, StatusCode};
-use hyper::header::CONTENT_TYPE;
+use hyper::header::{HeaderValue, CONTENT_TYPE};
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio::fs::File;
 
 
-static INDEX: &str = "index";
-static FWD_SLASH: &str = "/";
-static ERROR: &str = "500 Internal Server Error";
+const INDEX: &str = "index";
+const FWD_SLASH: &str = "/";
+const ERROR: &str = "500 Internal Server Error";
 
 // TEXT
 const CSS_EXT: &str = "css";
@@ -101,6 +101,7 @@ const TSV: &str = "video/MP2T";
 fn response_500() -> Response<Body> {
 	let mut response: Response<Body> = Response::new(ERROR.into());
 	*response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+	response.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static(HTML));
 
 	response
 }
@@ -157,17 +158,17 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 	}
 }
 
-pub fn get_pathbuff(
+pub fn get_pathbuff_from_request(
 	dir: &path::PathBuf,
 	_req: Request<Body>,
 ) -> Result<path::PathBuf, io::Error> {
-    let uri_path = _req.uri().path();
-    let stripped_path = match uri_path.strip_prefix(FWD_SLASH) {
+    let uri = _req.uri().path();
+    let strip_uri = match uri.strip_prefix(FWD_SLASH) {
         Some(p) => p,
-        None => uri_path,
+        None => uri,
     };
 
-    let mut path = dir.join(stripped_path);
+    let mut path = dir.join(strip_uri);
     if path.is_dir() {
         path.push(INDEX);
         path.set_extension(HTML_EXT);
@@ -176,7 +177,7 @@ pub fn get_pathbuff(
     path.canonicalize()
 }
 
-async fn load_file(
+async fn build_response(
 	status_code: StatusCode,
 	request_path: path::PathBuf,
 	file: File,
@@ -191,21 +192,21 @@ async fn load_file(
 		.body(body)
 }
 
-pub async fn serve_file(
+pub async fn serve_path(
 	status_code: StatusCode,
 	pb: path::PathBuf,
 	pb_500: path::PathBuf,
 ) -> Result<Response<Body>, Infallible> {
 	// attempt to serve file
 	if let Ok(file) = File::open(&pb).await {
-		if let Ok(response) = load_file(status_code, pb, file).await {
+		if let Ok(response) = build_response(status_code, pb, file).await {
 			return Ok(response);
 		}
 	};
 
 	// custom 500
 	if let Ok(file) = File::open(&pb_500).await {
-		if let Ok(response) = load_file(
+		if let Ok(response) = build_response(
 			StatusCode::INTERNAL_SERVER_ERROR,
 			pb_500,
 			file,

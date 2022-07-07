@@ -37,7 +37,7 @@ async fn main() {
         
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
-                let (status_code, pb) = match serve_file::get_pathbuff(&conf.directory, _req) {
+                let (status_code, pb) = match serve_file::get_pathbuff_from_request(&conf.directory, _req) {
                 	Ok(p) => match p.starts_with(&conf.directory) {
                     		true => (StatusCode::OK, p),
                     		_ => (StatusCode::FORBIDDEN, conf.filepath_403.clone()),
@@ -45,7 +45,7 @@ async fn main() {
                     	_ => (StatusCode::NOT_FOUND, conf.filepath_404.clone()),
                 };
 
-                serve_file::serve_file(status_code, pb, conf.filepath_500.clone())
+                serve_file::serve_path(status_code, pb, conf.filepath_500.clone())
             }))
         }
     });

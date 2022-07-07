@@ -3,23 +3,25 @@ use std::path;
 use std::fs;
 use std::io::Write;
 use std::fmt;
+
 use config;
 
-static CNTR_HOST: &str = "0.0.0.0";
-static CTNR_BASE_DIR: &str = "/usr/share/www";
-static FILE_SERVER_JSON_TARGET: &str = "file-server.json";
-static PODMAN_COMPOSE_TARGET: &str = "file-server.podman-compose.yml";
 
-static FAILED_TO_CONVERT_CONFIG: &str = "failed to convert config into string";
-static FAILED_TO_CREATE_CONFIG: &str = "failed to create config";
-static FAILED_TO_WRITE_CONFIG: &str = "failed to write config to disk";
+const CNTR_HOST: &str = "0.0.0.0";
+const CTNR_TARGET_DIR: &str = "/usr/share/www";
+const FILE_SERVER_JSON_TARGET: &str = "file-server.json";
+const PODMAN_COMPOSE_TARGET: &str = "file-server.podman-compose.yml";
 
-static PODMAN_COMPOSE_NOT_FOUND: &str = "podman-compose template was not found";
-static FAILED_TO_CONVERT_PODMAN_COMPOSE: &str = "failed to convert podman-compose template to string";
-static FAILED_TO_CREATE_PODMAN_COMPOSE: &str = "failed to create podman-compose";
-static FAILED_TO_WRITE_PODMAN_COMPOSE: &str = "failed to wright podman-compose to disk";
+const FAILED_TO_CONVERT_CONFIG: &str = "failed to convert config into string";
+const FAILED_TO_CREATE_CONFIG: &str = "failed to create config";
+const FAILED_TO_WRITE_CONFIG: &str = "failed to write config to disk";
 
-static FAILED_TO_PARSE_REL_PATH: &str = "failed to create relative path";
+const PODMAN_COMPOSE_NOT_FOUND: &str = "podman-compose template was not found";
+const FAILED_TO_CONVERT_PODMAN_COMPOSE: &str = "failed to convert podman-compose template to string";
+const FAILED_TO_CREATE_PODMAN_COMPOSE: &str = "failed to create podman-compose";
+const FAILED_TO_WRITE_PODMAN_COMPOSE: &str = "failed to wright podman-compose to disk";
+
+const FAILED_TO_PARSE_CTNR_PATH: &str = "failed to create container path";
 
 
 pub struct ContainerError {
@@ -49,30 +51,30 @@ pub fn get_pathbuff_from_args(index: usize) -> Option<path::PathBuf> {
 pub fn create_container_config(
     config: &config::Config,
 ) -> Result<config::Config, ContainerError> {
-    let base_dir = path::PathBuf::from(CTNR_BASE_DIR);
+    let dest = path::PathBuf::from(CTNR_TARGET_DIR);
 
-    let fp_403 = match pathbuff_to_container_pathbuff(
+    let fp_403 = match get_container_pathbuf(
         &config.directory,
         &config.filepath_403,
-        &base_dir,
+        &dest,
     ) {
         Ok(fp) => fp,
         Err(e) => return Err(e),
     };
 
-    let fp_404 = match pathbuff_to_container_pathbuff(
+    let fp_404 = match get_container_pathbuf(
         &config.directory,
         &config.filepath_404,
-        &base_dir,
+        &dest,
     ) {
         Ok(fp) => fp,
         Err(e) => return Err(e),
     };
 
-    let fp_500 = match pathbuff_to_container_pathbuff(
+    let fp_500 = match get_container_pathbuf(
         &config.directory,
         &config.filepath_500,
-        &base_dir,
+        &dest,
     ) {
         Ok(fp) => fp,
         Err(e) => return Err(e),
@@ -81,21 +83,21 @@ pub fn create_container_config(
     Ok(config::Config {
         host: CNTR_HOST.to_string(),
     	port: 3000,
-    	directory: base_dir,
+    	directory: dest,
     	filepath_403: fp_403,
     	filepath_404: fp_404,
     	filepath_500: fp_500,
     })
 }
 
-fn pathbuff_to_container_pathbuff(
+fn get_container_pathbuf(
     directory: &path::PathBuf,
     filepath: &path::PathBuf,
-    base_dir: &path::PathBuf,
+    taraget_dir: &path::PathBuf,
 ) -> Result<path::PathBuf, ContainerError> {
     match filepath.strip_prefix(directory) {
-        Ok(pb) => Ok(base_dir.join(pb)),
-        _ => Err(ContainerError::new(FAILED_TO_PARSE_REL_PATH)),
+        Ok(pb) => Ok(taraget_dir.join(pb)),
+        _ => Err(ContainerError::new(FAILED_TO_PARSE_CTNR_PATH)),
     }
 }
 

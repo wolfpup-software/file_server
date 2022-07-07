@@ -1,5 +1,5 @@
 [package]
-name = "file-server-container"
+name = "htb_file-server-container"
 version = "0.1.0"
 edition = "2021"
 

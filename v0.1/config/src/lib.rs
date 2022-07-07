@@ -7,24 +7,24 @@ use serde_json;
 use serde::{Serialize, Deserialize};
 
 
-static CURR_DIR_NOT_FOUND: &str = "could not find working directory";
-static CONFIG_NOT_FOUND_ERR: &str = "no config parameters were found at location";
+const CURR_DIR_NOT_FOUND: &str = "could not find working directory";
+const CONFIG_NOT_FOUND_ERR: &str = "no config parameters were found at location";
 
-static JSON_FILE_ERR: &str = "config json file failed to load";
-static JSON_SERIALIZE_FAILED_ERR: &str = "config json serialization failed";
-static JSON_DESERIALIZE_FAILED_ERR: &str = "config json deserialization failed";
+const JSON_FILE_ERR: &str = "config json file failed to load";
+const JSON_SERIALIZE_FAILED_ERR: &str = "config json serialization failed";
+const JSON_DESERIALIZE_FAILED_ERR: &str = "config json deserialization failed";
 
-static PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
+const PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
 
-static DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
-static DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
+const DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
+const DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
 
-static FILE_403_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
-static FILE_403_OUT_OF_BOUNDS_ERR: &str = "config.filepath_403 is not located in the base directory";
-static FILE_404_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
-static FILE_404_OUT_OF_BOUNDS_ERR: &str = "config.filepath_404 is not located in the base directory";
-static FILE_500_NOT_FOUND_ERR: &str = "config.filepath_500 was not found";
-static FILE_500_OUT_OF_BOUNDS_ERR: &str = "config.filepath_500 is not located in the base directory";
+const FILE_403_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
+const FILE_403_OUT_OF_BOUNDS_ERR: &str = "config.filepath_403 is not located in the base directory";
+const FILE_404_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
+const FILE_404_OUT_OF_BOUNDS_ERR: &str = "config.filepath_404 is not located in the base directory";
+const FILE_500_NOT_FOUND_ERR: &str = "config.filepath_500 was not found";
+const FILE_500_OUT_OF_BOUNDS_ERR: &str = "config.filepath_500 is not located in the base directory";
 
 
 pub struct ConfigError {
@@ -153,16 +153,6 @@ impl ServiceConfig {
     }
 }
 
-pub fn combine_pathbuff(
-	base_dir: &path::PathBuf,
-	filepath: &path::PathBuf,
-) -> Result<path::PathBuf, std::io::Error> {
-    let mut fp = path::PathBuf::from(&base_dir);
-    fp.push(filepath);
-
-    fp.canonicalize()
-}
-
 fn validate_filepath(
 	parent_dir: &path::PathBuf,
 	pb: &path::PathBuf,
@@ -180,6 +170,16 @@ fn validate_filepath(
         },
         _ => return Err(ConfigError::new(not_found_err)),
     }
+}
+
+fn combine_pathbuff(
+	base_dir: &path::PathBuf,
+	filepath: &path::PathBuf,
+) -> Result<path::PathBuf, std::io::Error> {
+    let mut fp = path::PathBuf::from(&base_dir);
+    fp.push(filepath);
+
+    fp.canonicalize()
 }
 
 pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {

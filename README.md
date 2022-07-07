@@ -36,8 +36,7 @@ An example of a valid configuration can be found at `file-server/v0.1/resources/
 
 ```json
 {
-  "host": "127.0.0.1",
-  "port": 3000,
+  "address": "127.0.0.1:3000",
   "directory": "./demo",
   "filepath_403": "./demo/403.html",
   "filepath_404": "./demo/404.html",
@@ -96,7 +95,7 @@ The following psuedo cli command shows the argument schema:
 bash build_container_files.sh <destination directory> <json config filepath>
 ```
 
-Run the following script to create a container that serves the `hbt_file-server` demo:
+Run the following shell commands to create a container based on `file-server.json.example`:
 ```
 mkdir file-server/ctnr/
 bash file-server/v0.1/build_container_files.sh \
