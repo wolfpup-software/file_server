@@ -15,6 +15,3 @@ Cargo.lock
 
 # REPO ignores
 ctnr/
-demo/file-server.json
-demo/file-server.podmanfile
-demo/file-server.podman-compose.yml

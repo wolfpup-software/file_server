@@ -1,5 +1,7 @@
 # file-server
 
+It serves files. That's it.
+
 An `http` file server written in rust using [tokio](https://tokio.rs/) and [hyper](https://hyper.rs/).
 
 ## Create a config
@@ -36,11 +38,12 @@ An example of a valid configuration can be found at `file-server/v0.1/resources/
 
 ```json
 {
-  "address": "127.0.0.1:3000",
-  "directory": "./demo",
-  "filepath_403": "./demo/403.html",
-  "filepath_404": "./demo/404.html",
-  "filepath_500": "./demo/500.html"
+  "host": "127.0.0.1",
+  "port": 3000,
+  "directory": "./docs",
+  "filepath_403": "./docs/403.html",
+  "filepath_404": "./docs/404.html",
+  "filepath_500": "./docs/500.html"
 }
 ```
 
@@ -50,7 +53,7 @@ Execute the following to install `htb_file-server`.
 
 ```
 git clone https://github.com/herebythere/file-server
-cargo install --path file-server/v0.1/file-server
+cargo install --path file-server/v0.1/app
 ```
 
 ## Run file-server
@@ -129,4 +132,3 @@ a different filepath to target an alternative container.
 ## Licence
 
 BSD 3-Clause License
-
