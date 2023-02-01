@@ -7,7 +7,7 @@
 curr_dir=`dirname $0`
 
 config_path=$curr_dir/config
-file_server_path=$curr_dir/app
+file_server_path=$curr_dir/file-server
 podmanfile_path=$curr_dir/resources/file-server.podmanfile
 podman_compose_path=$curr_dir/resources/podman-compose.yml.template
 container_path=$curr_dir/container/Cargo.toml
