@@ -53,15 +53,6 @@ pub fn create_container_config(
 ) -> Result<config::Config, ContainerError> {
     let dest = path::PathBuf::from(CTNR_TARGET_DIR);
 
-    let fp_403 = match get_container_pathbuf(
-        &config.directory,
-        &config.filepath_403,
-        &dest,
-    ) {
-        Ok(fp) => fp,
-        Err(e) => return Err(e),
-    };
-
     let fp_404 = match get_container_pathbuf(
         &config.directory,
         &config.filepath_404,
@@ -84,7 +75,6 @@ pub fn create_container_config(
         host: CNTR_HOST.to_string(),
     	port: 3000,
     	directory: dest,
-    	filepath_403: fp_403,
     	filepath_404: fp_404,
     	filepath_500: fp_500,
     })

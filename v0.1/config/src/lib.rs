@@ -19,8 +19,6 @@ const PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
 const DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
 const DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
 
-const FILE_403_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
-const FILE_403_OUT_OF_BOUNDS_ERR: &str = "config.filepath_403 is not located in the base directory";
 const FILE_404_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
 const FILE_404_OUT_OF_BOUNDS_ERR: &str = "config.filepath_404 is not located in the base directory";
 const FILE_500_NOT_FOUND_ERR: &str = "config.filepath_500 was not found";
@@ -48,7 +46,6 @@ pub struct Config {
     pub host: String,
     pub port: u16,
     pub directory: path::PathBuf,
-    pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
     pub filepath_500: path::PathBuf,
 }
@@ -89,18 +86,6 @@ impl Config {
         if !directory.is_dir() {
             return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
         }
-    
-        // create config with absolute filepaths from client config
-        let filepath_403 = match validate_filepath(
-            &parent_dir,
-            &config.filepath_403,
-            &directory,
-            FILE_403_NOT_FOUND_ERR,
-            FILE_403_OUT_OF_BOUNDS_ERR,
-        ) {
-            Ok(j) => j,
-            Err(e) => return Err(e),
-        };
         
         let filepath_404 = match validate_filepath(
             &parent_dir,
@@ -128,7 +113,6 @@ impl Config {
             host: config.host,
             port: config.port,
             directory: directory,
-            filepath_403: filepath_403,
             filepath_404: filepath_404,
             filepath_500: filepath_500,
         })
@@ -137,7 +121,6 @@ impl Config {
 
 pub struct ServiceConfig {
     pub directory: path::PathBuf,
-    pub filepath_403: path::PathBuf,
     pub filepath_404: path::PathBuf,
     pub filepath_500: path::PathBuf,
 }
@@ -146,7 +129,6 @@ impl ServiceConfig {
     pub fn from_config(config: &Config) -> ServiceConfig {
         ServiceConfig {
             directory: config.directory.clone(),
-            filepath_403: config.filepath_403.clone(),
             filepath_404: config.filepath_404.clone(),
             filepath_500: config.filepath_500.clone(),
         }
