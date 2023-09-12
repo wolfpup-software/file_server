@@ -99,12 +99,13 @@ const TSV: &str = "video/MP2T";
 
 
 fn response_500() -> Response<Body> {
-	let mut response: Response<Body> = Response::new(ERROR.into());
-	*response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-	response.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static(HTML));
-
-	response
+	Response::builder()
+		.status(StatusCode::INTERNAL_SERVER_ERROR)
+		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
+		.body(ERROR.into())
 }
+
+// response 404
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
 	let extension = match request_path.extension() {
@@ -202,18 +203,9 @@ pub async fn serve_path(
 		if let Ok(response) = build_response(status_code, pb, file).await {
 			return Ok(response);
 		}
+		// else 404
 	};
 
-	// custom 500
-	if let Ok(file) = File::open(&pb_500).await {
-		if let Ok(response) = build_response(
-			StatusCode::INTERNAL_SERVER_ERROR,
-			pb_500,
-			file,
-		).await {
-			return Ok(response);
-		}
-	};
 
 	// oh no 500
 	Ok(response_500())
