@@ -19,11 +19,6 @@ const PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
 const DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
 const DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
 
-const FILE_404_NOT_FOUND_ERR: &str = "config.filepath_403 was not found";
-const FILE_404_OUT_OF_BOUNDS_ERR: &str = "config.filepath_404 is not located in the base directory";
-const FILE_500_NOT_FOUND_ERR: &str = "config.filepath_500 was not found";
-const FILE_500_OUT_OF_BOUNDS_ERR: &str = "config.filepath_500 is not located in the base directory";
-
 
 pub struct ConfigError {
     message: String,
@@ -46,8 +41,6 @@ pub struct Config {
     pub host: String,
     pub port: u16,
     pub directory: path::PathBuf,
-    pub filepath_404: path::PathBuf,
-    pub filepath_500: path::PathBuf,
 }
 
 impl Config {
@@ -87,70 +80,23 @@ impl Config {
             return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
         }
         
-        let filepath_404 = match validate_filepath(
-            &parent_dir,
-            &config.filepath_404,
-            &directory,
-            FILE_404_NOT_FOUND_ERR,
-            FILE_404_OUT_OF_BOUNDS_ERR,
-        ) {
-            Ok(j) => j,
-            Err(e) => return Err(e),
-        };
-        
-        let filepath_500 = match validate_filepath(
-            &parent_dir,
-            &config.filepath_500,
-            &directory,
-            FILE_500_NOT_FOUND_ERR,
-            FILE_500_OUT_OF_BOUNDS_ERR,
-        ) {
-            Ok(j) => j,
-            Err(e) => return Err(e),
-        };
-        
         Ok(Config {
             host: config.host,
             port: config.port,
             directory: directory,
-            filepath_404: filepath_404,
-            filepath_500: filepath_500,
         })
     }
 }
 
 pub struct ServiceConfig {
     pub directory: path::PathBuf,
-    pub filepath_404: path::PathBuf,
-    pub filepath_500: path::PathBuf,
 }
 
 impl ServiceConfig {
     pub fn from_config(config: &Config) -> ServiceConfig {
         ServiceConfig {
             directory: config.directory.clone(),
-            filepath_404: config.filepath_404.clone(),
-            filepath_500: config.filepath_500.clone(),
         }
-    }
-}
-
-fn validate_filepath(
-	parent_dir: &path::PathBuf,
-	pb: &path::PathBuf,
-	base_dir: &path::PathBuf,
-	not_found_err: &str,
-	bound_err: &str,
-) -> Result<path::PathBuf, ConfigError> {
-    match combine_pathbuff(parent_dir, pb) {
-        Ok(fp) => {
-            if fp.starts_with(base_dir) {
-                return Ok(fp);
-            }
-
-            Err(ConfigError::new(bound_err))
-        },
-        _ => return Err(ConfigError::new(not_found_err)),
     }
 }
 
@@ -160,7 +106,7 @@ fn combine_pathbuff(
 ) -> Result<path::PathBuf, std::io::Error> {
     let mut fp = path::PathBuf::from(&base_dir);
     fp.push(filepath);
-
+    
     fp.canonicalize()
 }
 
@@ -170,3 +116,4 @@ pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {
         _ => Err(ConfigError::new(JSON_SERIALIZE_FAILED_ERR))
     }
 }
+

@@ -30,5 +30,5 @@ fi
 
 cp $podmanfile_path $1
 
-# ($1: destination) ($2: config_filepath) ($3: podman-compose_template_filepath)
+# ($1: destination) ($2: config_filepath)
 cargo run --manifest-path $container_path $1 $2 $podman_compose_path

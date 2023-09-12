@@ -32,11 +32,20 @@ async fn main() {
     let addr = net::SocketAddr::new(host, config.port);
 
     // create function for server (hyper::Server)
+    // look up best fit for making service function
+    // make this closure it's own function
+    //
+    // do we need 
     let file_service = make_service_fn(|_| {
+    		// only need 500 and 404 path
         let conf = config::ServiceConfig::from_config(&config);
         
         async {
             Ok::<_, Infallible>(service_fn(move |_req| {
+            		// get path buff
+            		// if error return 404
+            		// otherwise get file
+            		// then serve file
                 let (status_code, pb) = match serve_file::get_pathbuff_from_request(&conf.directory, _req) {
                 	Ok(p) => match p.starts_with(&conf.directory) {
                 		true => (StatusCode::OK, p),
@@ -54,4 +63,8 @@ async fn main() {
     if let Err(e) = Server::bind(&addr).serve(file_service).await {
         println!("server error: {}", e);
     }
+}
+
+async fn file_response(req: Request<hyper::body::Incoming>) {
+
 }

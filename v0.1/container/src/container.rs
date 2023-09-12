@@ -21,8 +21,6 @@ const FAILED_TO_CONVERT_PODMAN_COMPOSE: &str = "failed to convert podman-compose
 const FAILED_TO_CREATE_PODMAN_COMPOSE: &str = "failed to create podman-compose";
 const FAILED_TO_WRITE_PODMAN_COMPOSE: &str = "failed to wright podman-compose to disk";
 
-const FAILED_TO_PARSE_CTNR_PATH: &str = "failed to create container path";
-
 
 pub struct ContainerError {
     message: String,
@@ -40,7 +38,6 @@ impl fmt::Display for ContainerError {
     }
 }
 
-
 pub fn get_pathbuff_from_args(index: usize) -> Option<path::PathBuf> {
     match env::args().nth(index) {
         Some(c) => Some(path::PathBuf::from(c)),
@@ -48,47 +45,14 @@ pub fn get_pathbuff_from_args(index: usize) -> Option<path::PathBuf> {
     }
 }
 
-pub fn create_container_config(
-    config: &config::Config,
-) -> Result<config::Config, ContainerError> {
+pub fn create_container_config() -> Result<config::Config, ContainerError> {
     let dest = path::PathBuf::from(CTNR_TARGET_DIR);
-
-    let fp_404 = match get_container_pathbuf(
-        &config.directory,
-        &config.filepath_404,
-        &dest,
-    ) {
-        Ok(fp) => fp,
-        Err(e) => return Err(e),
-    };
-
-    let fp_500 = match get_container_pathbuf(
-        &config.directory,
-        &config.filepath_500,
-        &dest,
-    ) {
-        Ok(fp) => fp,
-        Err(e) => return Err(e),
-    };
 
     Ok(config::Config {
         host: CNTR_HOST.to_string(),
     	port: 3000,
     	directory: dest,
-    	filepath_404: fp_404,
-    	filepath_500: fp_500,
     })
-}
-
-fn get_container_pathbuf(
-    directory: &path::PathBuf,
-    filepath: &path::PathBuf,
-    taraget_dir: &path::PathBuf,
-) -> Result<path::PathBuf, ContainerError> {
-    match filepath.strip_prefix(directory) {
-        Ok(pb) => Ok(taraget_dir.join(pb)),
-        _ => Err(ContainerError::new(FAILED_TO_PARSE_CTNR_PATH)),
-    }
 }
 
 pub fn write_config(

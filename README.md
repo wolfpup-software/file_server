@@ -14,9 +14,7 @@ Configuration files are expected to use use the following schema:
 {
   "host": <string>,
   "port": <number>,
-  "directory": <string>,
-  "filepath_404": <string>,
-  "filepath_500": <string>
+  "directory": <string>
 }
 ```
 
@@ -25,11 +23,6 @@ Change the `host` property to serve from a specific host.
 Change the `port` property to serve from a different port.
 
 Change the `directory` property to target a alternative directory.
-
-Each `directory` must include a `filepath` for the following status codes:
-
-- `404` at `filepath_404`
-- `500` at `filepath_500`
 
 All `filepaths` must be a descendant of `directory`.
 
@@ -40,9 +33,7 @@ An example of a valid configuration can be found at
 {
   "host": "127.0.0.1",
   "port": 3000,
-  "directory": "./docs",
-  "filepath_404": "./docs/404.html",
-  "filepath_500": "./docs/500.html"
+  "directory": "./docs"
 }
 ```
 

@@ -24,9 +24,7 @@ fn main() {
         Err(e) => return println!("configuration error: {}", e),
     };
 
-    let container_config = match container::create_container_config(
-        &config,
-    ) {
+    let container_config = match container::create_container_config() {
         Ok(c) => c,
         _ => return println!("config error: failed to create container config")
     };

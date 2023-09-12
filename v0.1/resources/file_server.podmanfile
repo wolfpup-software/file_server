@@ -3,9 +3,9 @@ FROM rust:latest
 VOLUME ["/usr/share/www/"]
 EXPOSE 3000
 
-COPY ./file-server.json /usr/share/
+COPY ./file_server.json /usr/share/
 ADD ./config /usr/local/config
-ADD ./app /usr/local/hbt_file-server
+ADD ./app /usr/local/hbt_file_server
 
 RUN cargo install --path /usr/local/hbt_file-server/
 
