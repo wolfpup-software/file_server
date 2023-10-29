@@ -4,7 +4,7 @@ services:
     container_name: file_server__rust_{port}
     build:
       context: ./
-      dockerfile: file-server.podmanfile
+      dockerfile: file_server.podmanfile
     ports:
       - "{host}:{port}:3000"
     volumes:
