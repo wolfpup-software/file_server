@@ -1,15 +1,15 @@
-
+use std::future::Future;
 use std::io;
 use std::path;
-use std::future::Future;
 use std::pin::Pin;
 
-use hyper::header::{HeaderValue, CONTENT_TYPE};
-
-use http_body_util::Full;
 use bytes::Bytes;
-use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
+use http_body_util::Full;
+use hyper::{Request, Response, StatusCode};
+use hyper::body::{Incoming as IncomingBody};
+use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::service::Service;
+
 
 const FWD_SLASH: &str = "/";
 const NOT_FOUND: &str = "not found";
@@ -102,6 +102,29 @@ const M3U8: &str = "application/x-mpegURL";
 const TSV_EXT: &str = "ts";
 const TSV: &str = "video/MP2T";
 
+pub struct Svc {
+	pub directory: path::PathBuf,
+}
+
+impl Service<Request<IncomingBody>> for Svc {
+    type Response = Response<Full<Bytes>>;
+    type Error = hyper::http::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+    		let path = match get_pathbuff_from_request(
+    			&self.directory,
+    			&req,
+    		) {
+    			Ok(p) => p,
+    			Err(_) => return Box::pin(async { response_500() }),
+    		};
+    		
+        Box::pin(async {
+		      build_response(path).await
+        })
+    }
+}
 
 fn get_pathbuff_from_request(
 	dir: &path::PathBuf,
@@ -130,7 +153,8 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 				None => HTML,
 			}
 		},
-		None => HTML,
+		// should not occur, get_pathbuff_from_request will always add file extension
+		None => TEXT, 
 	};
 
 	match extension {
@@ -188,14 +212,15 @@ fn response_404() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
 	  .body(Full::new(NOT_FOUND.into()))
 }
 
+/* 
+	possibly more efficient to chunk
+	let stream = FramedRead::new(request_path, BytesCodec::new());
+	let body = Body::wrap_stream(stream);
+*/
 async fn build_response(
 	request_path: path::PathBuf,
 ) -> Result<Response<Full<Bytes>>, hyper::http::Error> {
 	let content_type = get_content_type(&request_path);
-	
-	// let stream = FramedRead::new(request_path, BytesCodec::new());
-	// let body = Body::wrap_stream(stream);
-	
 	let contents = match tokio::fs::read(&request_path).await {
 		Ok(c) => c,
 		Err(_) => return response_404(),
@@ -205,32 +230,5 @@ async fn build_response(
 		.status(StatusCode::OK)
 		.header(CONTENT_TYPE, content_type)
 	  .body(contents.into())
-}
-
-pub struct Svc {
-	pub directory: path::PathBuf,
-}
-
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::http::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-    		let path = match get_pathbuff_from_request(
-    			&self.directory,
-    			&req,
-    		) {
-    			Ok(p) => p,
-    			Err(_) => return Box::pin(async { response_500() }),
-    		};
-    		
-    		// implicitly returning Box where the closure?? returns the Response
-        Box::pin(async {
-		      build_response(
-		      	path,
-	      	).await
-        })
-    }
 }
 

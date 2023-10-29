@@ -39,7 +39,7 @@ async fn main() {
       	directory: path::PathBuf::from(&config.directory),
       };
       
-      tokio::task::spawn(async move {
+      tokio::task::spawn(async {
 		      // Finally, we bind the incoming connection to our `hello` service
 		      if let Err(err) = http1::Builder::new()
 		          // `service_fn` converts our function in a `Service`
