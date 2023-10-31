@@ -12,10 +12,9 @@ use hyper::service::Service;
 
 
 const FWD_SLASH: &str = "/";
-const NOT_FOUND: &str = "not found";
 const INDEX: &str = "index";
-const ERROR: &str = "500 Internal Server Error";
-const OCTET_STREAM: &str = "application/octet-stream";
+const NOT_FOUND: &str = "404 not found";
+const ERROR: &str = "500 internal server error";
 
 // TEXT
 const CSS_EXT: &str = "css";
@@ -101,6 +100,8 @@ const M3U8_EXT: &str = "M3U8";
 const M3U8: &str = "application/x-mpegURL";
 const TSV_EXT: &str = "ts";
 const TSV: &str = "video/MP2T";
+const OCTET_STREAM: &str = "application/octet-stream";
+
 
 pub struct Svc {
 	pub directory: path::PathBuf,
@@ -112,17 +113,19 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-    		let path = match get_pathbuff_from_request(
-    			&self.directory,
-    			&req,
-    		) {
-    			Ok(p) => p,
-    			Err(_) => return Box::pin(async { response_500() }),
-    		};
-    		
-        Box::pin(async {
-		      build_response(path).await
-        })
+    	let path = match get_pathbuff_from_request(
+				&self.directory,
+				&req,
+			) {
+				Ok(p) => p,
+				Err(_err) =>  {
+					return Box::pin(async {response_404()});
+				},
+			};
+			
+      Box::pin(async {
+	      build_response(path).await
+      })
     }
 }
 
@@ -141,8 +144,8 @@ fn get_pathbuff_from_request(
         path.push(INDEX);
         path.set_extension(HTML_EXT);
     }
-
-    path.canonicalize()
+    
+		path.canonicalize()
 }
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
@@ -150,11 +153,11 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 		Some(ext) => {
 			match ext.to_str() {
 				Some(e) => e,
-				None => HTML,
+				_ => TEXT,
 			}
 		},
-		// should not occur, get_pathbuff_from_request will always add file extension
-		None => TEXT, 
+		// text files with no extension
+		_ => TEXT, 
 	};
 
 	match extension {
@@ -198,18 +201,18 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 	}
 }
 
-fn response_500() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
-	Response::builder()
-		.status(StatusCode::INTERNAL_SERVER_ERROR)
-		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		.body(ERROR.into())
-}
-
 fn response_404() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
   Response::builder()
 	  .status(StatusCode::NOT_FOUND)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
 	  .body(Full::new(NOT_FOUND.into()))
+}
+
+fn response_500() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
+	Response::builder()
+		.status(StatusCode::INTERNAL_SERVER_ERROR)
+		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
+		.body(ERROR.into())
 }
 
 /* 
@@ -218,17 +221,18 @@ fn response_404() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
 	let body = Body::wrap_stream(stream);
 */
 async fn build_response(
-	request_path: path::PathBuf,
+	path: path::PathBuf,
 ) -> Result<Response<Full<Bytes>>, hyper::http::Error> {
-	let content_type = get_content_type(&request_path);
-	let contents = match tokio::fs::read(&request_path).await {
-		Ok(c) => c,
-		Err(_) => return response_404(),
-	};
 	
-	Response::builder()
-		.status(StatusCode::OK)
-		.header(CONTENT_TYPE, content_type)
-	  .body(contents.into())
+	match tokio::fs::read(&path).await {
+		Ok(contents) => {
+			let content_type = get_content_type(&path);
+			Response::builder()
+				.status(StatusCode::OK)
+				.header(CONTENT_TYPE, content_type)
+				.body(contents.into())
+		},
+		_ => response_500(),
+	}
 }
 
