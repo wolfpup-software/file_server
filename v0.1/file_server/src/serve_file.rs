@@ -108,44 +108,44 @@ pub struct Svc {
 }
 
 impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<Full<Bytes>>;
-    type Error = hyper::http::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+	type Response = Response<Full<Bytes>>;
+	type Error = hyper::http::Error;
+	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-    	let path = match get_pathbuff_from_request(
-				&self.directory,
-				&req,
-			) {
-				Ok(p) => p,
-				Err(_err) =>  {
-					return Box::pin(async {response_404()});
-				},
-			};
-			
-      Box::pin(async {
-	      build_response(path).await
-      })
-    }
+	fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+		let path = match get_pathbuff_from_request(
+			&self.directory,
+			&req,
+		) {
+			Ok(p) => p,
+			Err(_err) =>  {
+				return Box::pin(async {response_404()});
+			},
+		};
+		
+		Box::pin(async {
+		  build_response(path).await
+		})
+	}
 }
 
 fn get_pathbuff_from_request(
 	dir: &path::PathBuf,
 	req: &Request<IncomingBody>,
 ) -> Result<path::PathBuf, io::Error> {
-    let uri = req.uri().path();
-    let strip_uri = match uri.strip_prefix(FWD_SLASH) {
-        Some(p) => p,
-        None => uri,
-    };
+	let uri = req.uri().path();
+	let strip_uri = match uri.strip_prefix(FWD_SLASH) {
+		Some(p) => p,
+		None => uri,
+	};
 
-    let mut path = dir.join(strip_uri);
-    if path.is_dir() {
-        path.push(INDEX);
-        path.set_extension(HTML_EXT);
-    }
-    
-		path.canonicalize()
+	let mut path = dir.join(strip_uri);
+	if path.is_dir() {
+		path.push(INDEX);
+		path.set_extension(HTML_EXT);
+	}
+
+	path.canonicalize()
 }
 
 fn get_content_type(request_path: &path::PathBuf) -> &str {
@@ -203,9 +203,9 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 
 fn response_404() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
   Response::builder()
-	  .status(StatusCode::NOT_FOUND)
+		.status(StatusCode::NOT_FOUND)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-	  .body(Full::new(NOT_FOUND.into()))
+		.body(Full::new(NOT_FOUND.into()))
 }
 
 fn response_500() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
@@ -223,7 +223,6 @@ fn response_500() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
 async fn build_response(
 	path: path::PathBuf,
 ) -> Result<Response<Full<Bytes>>, hyper::http::Error> {
-	
 	match tokio::fs::read(&path).await {
 		Ok(contents) => {
 			let content_type = get_content_type(&path);

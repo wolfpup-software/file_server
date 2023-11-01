@@ -9,3 +9,4 @@ services:
       - "{host}:{port}:3000"
     volumes:
       - {directory}:/usr/share/www:ro
+
