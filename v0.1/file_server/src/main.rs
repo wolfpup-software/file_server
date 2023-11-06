@@ -25,13 +25,13 @@ async fn main() {
 	let address = format!("{}:{}", config.host, config.port);
 	let listener = match TcpListener::bind(address).await {
 		Ok(l) => l,
-		_ => return println!("configuration error: unable to parse host."),
+		Err(e) => return println!("configuration error:\n{}", e),
 	};
 
 	loop {
 		let (stream, _) = match listener.accept().await {
 			Ok(s) => s,
-			_ => return println!("configuration error"),
+			Err(e) => return println!("configuration error:\n{}", e),
 		};
 		
 		let io = TokioIo::new(stream);

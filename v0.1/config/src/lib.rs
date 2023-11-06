@@ -10,10 +10,6 @@ const PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
 const DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
 
 
-pub struct GenericError;
-pub struct CurrentDirectoryError;
-pub struct ParentDirectoryError;
-
 pub enum ConfigError<'a> {
 	IoError(std::io::Error),
 	JsonError(serde_json::Error),
