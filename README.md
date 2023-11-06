@@ -45,11 +45,9 @@ cargo install --path file_server/v0.1/file_server
 
 ## Run file_server
 
-The `file_server` application accepts one argument:
+The `file_server` application accepts one argument from the command line:
 
 - A valid `file_server` JSON configuration file
-
-The following psuedo-script shows the argument schema:
 
 ```
 file_server <path_to_configuration_file>
