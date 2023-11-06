@@ -14,12 +14,12 @@ mod serve_file;
 async fn main() {
 	let args = match env::args().nth(1) {
 		Some(a) => path::PathBuf::from(a),
-		None => return println!("argument error: no config params were found."),
+		None => return println!("argument error:\nno config params were found."),
 	};
 
 	let config = match config::Config::from_filepath(&args) {
 		Ok(c) => c,
-		Err(e) => return println!("configuration error: {}", e),
+		Err(e) => return println!("configuration error:\n{}", e),
 	};
 
 	let address = format!("{}:{}", config.host, config.port);
@@ -39,14 +39,11 @@ async fn main() {
 			directory: path::PathBuf::from(&config.directory),
 		};
 		
+		// print or log errors here
 		tokio::task::spawn(async move {
-			if let Err(err) = http1::Builder::new()
+			http1::Builder::new()
 				.serve_connection(io, service)
 				.await
-			{
-				// print or log error
-				// println!("Error serving connection: {:?}", err);
-			}
 		});
 	}
 }

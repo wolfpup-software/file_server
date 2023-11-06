@@ -6,33 +6,27 @@ use std::path;
 use serde_json;
 use serde::{Serialize, Deserialize};
 
-
-const CURR_DIR_NOT_FOUND: &str = "could not find working directory";
-const CONFIG_NOT_FOUND_ERR: &str = "no config parameters were found at location";
-
-const JSON_FILE_ERR: &str = "config json file failed to load";
-const JSON_SERIALIZE_FAILED_ERR: &str = "config json serialization failed";
-const JSON_DESERIALIZE_FAILED_ERR: &str = "config json deserialization failed";
-
 const PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
-
-const DIR_TARGET_NOT_FOUND_ERR: &str = "directory target was not found";
 const DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
 
 
-pub struct ConfigError {
-    message: String,
+pub struct GenericError;
+pub struct CurrentDirectoryError;
+pub struct ParentDirectoryError;
+
+pub enum ConfigError<'a> {
+	IoError(std::io::Error),
+	JsonError(serde_json::Error),
+	GenericError(&'a str),
 }
 
-impl ConfigError {
-    pub fn new(msg: &str) -> ConfigError {
-        ConfigError { message: msg.to_string() }
-    }
-}
-
-impl fmt::Display for ConfigError {
+impl fmt::Display for ConfigError<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
+    	match self {
+    		ConfigError::IoError(io_error) => write!(f, "{}", io_error),
+    		ConfigError::JsonError(json_error) => write!(f, "{}", json_error),
+    		ConfigError::GenericError(generic_error) => write!(f, "{}", generic_error),
+    	}
     }
 }
 
@@ -48,36 +42,35 @@ impl Config {
         // get position relative to working directory
         let working_dir = match env::current_dir() {
             Ok(pb) => pb,
-            _ => return Err(ConfigError::new(CURR_DIR_NOT_FOUND))
+            Err(e) => return Err(ConfigError::IoError(e))
         };
         
         let config_pathbuff = match combine_pathbuff(&working_dir.to_path_buf(), filepath) {
             Ok(pb) => pb,
-            _ => return Err(ConfigError::new(CONFIG_NOT_FOUND_ERR)),
+            Err(e) => return Err(ConfigError::IoError(e))
         };
 
         let parent_dir = match config_pathbuff.parent() {
             Some(p) => p.to_path_buf(),
-            _ => return Err(ConfigError::new(PARENT_NOT_FOUND_ERR))
+            _ =>  return Err(ConfigError::GenericError(PARENT_NOT_FOUND_ERR))
         };
     
-        // build json conifg
         let json_as_str = match fs::read_to_string(&config_pathbuff) {
             Ok(r) => r,
-            _ => return Err(ConfigError::new(JSON_FILE_ERR)),
+            Err(e) => return Err(ConfigError::IoError(e))
         };
     
         let config: Config = match serde_json::from_str(&json_as_str) {
             Ok(j) => j,
-            _ => return Err(ConfigError::new(JSON_DESERIALIZE_FAILED_ERR)),
+            Err(e) => return Err(ConfigError::JsonError(e))
         };
         
         let directory = match combine_pathbuff(&parent_dir, &config.directory) {
             Ok(j) => j,
-            _ => return Err(ConfigError::new(DIR_TARGET_NOT_FOUND_ERR)),
+            Err(e) =>  return Err(ConfigError::IoError(e))
         };
         if !directory.is_dir() {
-            return Err(ConfigError::new(DIR_IS_NOT_DIR_ERR))
+            return Err(ConfigError::GenericError(DIR_IS_NOT_DIR_ERR))
         }
         
         Ok(Config {
@@ -85,18 +78,6 @@ impl Config {
             port: config.port,
             directory: directory,
         })
-    }
-}
-
-pub struct ServiceConfig {
-    pub directory: path::PathBuf,
-}
-
-impl ServiceConfig {
-    pub fn from_config(config: &Config) -> ServiceConfig {
-        ServiceConfig {
-            directory: config.directory.clone(),
-        }
     }
 }
 
@@ -110,10 +91,10 @@ fn combine_pathbuff(
     fp.canonicalize()
 }
 
-pub fn config_to_string(config: &Config) -> Result<String, ConfigError> {
+pub fn config_to_string(config: &Config) -> Result<String, serde_json::Error> {
     match serde_json::to_string(config) {
         Ok(s) => Ok(s),
-        _ => Err(ConfigError::new(JSON_SERIALIZE_FAILED_ERR))
+        Err(e) => Err(e)
     }
 }
 

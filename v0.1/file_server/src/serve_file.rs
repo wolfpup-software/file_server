@@ -102,6 +102,10 @@ const TSV_EXT: &str = "ts";
 const TSV: &str = "video/MP2T";
 const OCTET_STREAM: &str = "application/octet-stream";
 
+// BINARY
+const WASM_EXT: &str = "wasm";
+const WASM: &str = "application/wasm";
+
 
 pub struct Svc {
 	pub directory: path::PathBuf,
@@ -191,6 +195,7 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 		OGGV_EXT => OGGV,
 		TEXT_EXT => TEXT,
 		TIFF_EXT => TIFF,
+		WASM_EXT => WASM,
 		WAV_EXT => WAV,
 		WEBA_EXT => WEBA,
 		WEBM_EXT => WEBM,
