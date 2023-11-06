@@ -11,7 +11,7 @@ const CNTR_HOST: &str = "0.0.0.0";
 const CTNR_TARGET_DIR: &str = "/usr/share/www";
 const FILE_SERVER_JSON_TARGET: &str = "file_server.json";
 const PODMAN_COMPOSE_TARGET: &str = "podman-compose.yml";
-const PODMANFILE_TARGET: &str = "podmanfile";
+const PODMANFILE_TARGET: &str = "file_server.podmanfile";
 
 const FAILED_TO_CONVERT_CONFIG: &str = "failed to convert config into string";
 const FAILED_TO_CREATE_CONFIG: &str = "failed to create config";
@@ -101,12 +101,19 @@ pub fn write_podmanfile(
 	
 	// import v0.1 entirely
 	let manifest_path = path::PathBuf::from(manifest_dir);
-	let file_server_path = match manifest_path.join("../").canonicalize() {
+	let file_server_path = match manifest_path.join("../file_server").canonicalize() {
+		Ok(p) => p,
+		_ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
+	};
+	
+	// import v0.1 entirely
+	let config_path = match manifest_path.join("../config").canonicalize() {
 		Ok(p) => p,
 		_ => return Err(ContainerError::new(PODMAN_COMPOSE_NOT_FOUND)),
 	};
 	
   let podmanfile = contents
+    .replace("{config_dir}", &config_path.display().to_string())
     .replace("{file_server_dir}", &file_server_path.display().to_string());
 
 	let mut target = path::PathBuf::from(destination);

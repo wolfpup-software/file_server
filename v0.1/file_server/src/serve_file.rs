@@ -216,7 +216,7 @@ fn response_500() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
 }
 
 /* 
-	possibly more efficient to chunk
+	possibly more efficient to chunk, hyper 0.14
 	let stream = FramedRead::new(request_path, BytesCodec::new());
 	let body = Body::wrap_stream(stream);
 */

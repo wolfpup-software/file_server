@@ -45,7 +45,7 @@ async fn main() {
 				.await
 			{
 				// print or log error
-				println!("Error serving connection: {:?}", err);
+				// println!("Error serving connection: {:?}", err);
 			}
 		});
 	}
