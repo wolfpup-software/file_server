@@ -127,6 +127,10 @@ impl Service<Request<IncomingBody>> for Svc {
 			},
 		};
 		
+		if !path.starts_with(&self.directory) {
+			return Box::pin(async {response_404()});
+		}
+		
 		Box::pin(async {
 		  build_response(path).await
 		})
