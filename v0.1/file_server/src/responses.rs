@@ -216,6 +216,7 @@ fn response_404() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyp
   Response::builder()
 		.status(StatusCode::NOT_FOUND)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
+		// pain
 		.body(Full::new(NOT_FOUND.into()).map_err(|e| match e {}).boxed())
 }
 
