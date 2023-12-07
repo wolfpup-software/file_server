@@ -216,7 +216,7 @@ fn response_404() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyp
   Response::builder()
 		.status(StatusCode::NOT_FOUND)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		// pain
+		// painful, more ergonomic?
 		.body(Full::new(NOT_FOUND.into()).map_err(|e| match e {}).boxed())
 }
 
@@ -236,14 +236,13 @@ async fn build_response(
 		    return response_500();
 		}
 		
+		let content_type = get_content_type(&path);
 		let file: File = file.unwrap();
 		// Wrap to a tokio_util::io::ReaderStream
 		let reader_stream = ReaderStream::new(file);
 		// Convert to http_body_util::BoxBody
 		let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
 		let boxed_body = stream_body.boxed();
-		
-		let content_type = get_content_type(&path);
 		
 		Response::builder()
 		  .status(StatusCode::OK)
