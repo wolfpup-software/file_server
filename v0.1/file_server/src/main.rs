@@ -14,7 +14,7 @@ mod responses;
 async fn main() {
 	let args = match env::args().nth(1) {
 		Some(a) => path::PathBuf::from(a),
-		None => return println!("argument error:\nno config params were found."),
+		None => return println!("argument error:\nconfig file was not found."),
 	};
 
 	let config = match config::Config::from_filepath(&args) {
@@ -25,17 +25,18 @@ async fn main() {
 	let address = format!("{}:{}", config.host, config.port);
 	let listener = match TcpListener::bind(address).await {
 		Ok(l) => l,
-		Err(e) => return println!("configuration error:\n{}", e),
+		Err(e) => return println!("tcp listener error:\n{}", e),
 	};
 
 	loop {
 		let (stream, _) = match listener.accept().await {
 			Ok(s) => s,
-			Err(e) => return println!("configuration error:\n{}", e),
+			Err(e) => return println!("socket error:\n{}", e),
 		};
 		
+
 		let io = TokioIo::new(stream);
-		let service = serve_file::Svc{
+		let service = responses::Svc{
 			directory: path::PathBuf::from(&config.directory),
 		};
 		

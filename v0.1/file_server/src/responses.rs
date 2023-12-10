@@ -3,15 +3,16 @@ use std::io;
 use std::path;
 use std::pin::Pin;
 
-use tokio_util::io::ReaderStream;
+
 use futures_util::TryStreamExt;
+use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::{Request, Response, StatusCode};
-use hyper::body::{Incoming as IncomingBody};
+use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::service::Service;
 use tokio::fs::File;
-use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
-use hyper::body::Frame;
+use tokio_util::io::ReaderStream;
+
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index";
@@ -149,6 +150,7 @@ fn get_pathbuff_from_request(
 		None => uri,
 	};
 
+	// just join the directory again, use a match
 	let mut path = dir.join(strip_uri);
 	if path.is_dir() {
 		path.push(INDEX);
@@ -230,23 +232,21 @@ fn response_500() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyp
 async fn build_response(
 	path: path::PathBuf,
 ) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
-		let file = File::open(&path).await;
-		if file.is_err() {
-		    eprintln!("ERROR: Unable to open file.");
-		    return response_500();
+		match File::open(&path).await {
+			Ok(file) => {
+				let content_type = get_content_type(&path);
+				// Wrap to a tokio_util::io::ReaderStream
+				let reader_stream = ReaderStream::new(file);
+				// Convert to http_body_util::BoxBody
+				let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+				let boxed_body = stream_body.boxed();
+				
+				Response::builder()
+					.status(StatusCode::OK)
+					.header(CONTENT_TYPE, content_type)
+					.body(boxed_body)
+			},
+			_ => response_500()
 		}
-		
-		let content_type = get_content_type(&path);
-		let file: File = file.unwrap();
-		// Wrap to a tokio_util::io::ReaderStream
-		let reader_stream = ReaderStream::new(file);
-		// Convert to http_body_util::BoxBody
-		let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-		let boxed_body = stream_body.boxed();
-		
-		Response::builder()
-		  .status(StatusCode::OK)
-		  .header(CONTENT_TYPE, content_type)
-		  .body(boxed_body)
 }
 
