@@ -3,18 +3,21 @@ use std::io;
 use std::path;
 use std::pin::Pin;
 
-use bytes::Bytes;
-use http_body_util::Full;
+
+use futures_util::TryStreamExt;
+use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::{Request, Response, StatusCode};
-use hyper::body::{Incoming as IncomingBody};
+use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::service::Service;
+use tokio::fs::File;
+use tokio_util::io::ReaderStream;
 
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index";
 const NOT_FOUND: &str = "404 not found";
-const ERROR: &str = "500 internal server error";
+const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 
 // TEXT
 const CSS_EXT: &str = "css";
@@ -112,7 +115,7 @@ pub struct Svc {
 }
 
 impl Service<Request<IncomingBody>> for Svc {
-	type Response = Response<Full<Bytes>>;
+	type Response = Response<BoxBody<bytes::Bytes, std::io::Error>>;
 	type Error = hyper::http::Error;
 	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -147,6 +150,7 @@ fn get_pathbuff_from_request(
 		None => uri,
 	};
 
+	// just join the directory again, use a match
 	let mut path = dir.join(strip_uri);
 	if path.is_dir() {
 		path.push(INDEX);
@@ -210,37 +214,39 @@ fn get_content_type(request_path: &path::PathBuf) -> &str {
 	}
 }
 
-fn response_404() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
+fn response_404() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
   Response::builder()
 		.status(StatusCode::NOT_FOUND)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		.body(Full::new(NOT_FOUND.into()))
+		// painful, more ergonomic?
+		.body(Full::new(NOT_FOUND.into()).map_err(|e| match e {}).boxed())
 }
 
-fn response_500() -> Result<Response<Full<Bytes>>, hyper::http::Error> {
+fn response_500() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
 	Response::builder()
 		.status(StatusCode::INTERNAL_SERVER_ERROR)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		.body(ERROR.into())
+		.body(Full::new(INTERNAL_SERVER_ERROR.into()).map_err(|e| match e {}).boxed())
 }
 
-/* 
-	possibly more efficient to chunk, hyper 0.14
-	let stream = FramedRead::new(request_path, BytesCodec::new());
-	let body = Body::wrap_stream(stream);
-*/
 async fn build_response(
 	path: path::PathBuf,
-) -> Result<Response<Full<Bytes>>, hyper::http::Error> {
-	match tokio::fs::read(&path).await {
-		Ok(contents) => {
-			let content_type = get_content_type(&path);
-			Response::builder()
-				.status(StatusCode::OK)
-				.header(CONTENT_TYPE, content_type)
-				.body(contents.into())
-		},
-		_ => response_500(),
-	}
+) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
+		match File::open(&path).await {
+			Ok(file) => {
+				let content_type = get_content_type(&path);
+				// Wrap to a tokio_util::io::ReaderStream
+				let reader_stream = ReaderStream::new(file);
+				// Convert to http_body_util::BoxBody
+				let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+				let boxed_body = stream_body.boxed();
+				
+				Response::builder()
+					.status(StatusCode::OK)
+					.header(CONTENT_TYPE, content_type)
+					.body(boxed_body)
+			},
+			_ => response_500()
+		}
 }
 

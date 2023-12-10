@@ -21,7 +21,7 @@ Change the `host` property to serve from a specific host.
 
 Change the `port` property to serve from a different port.
 
-Change the `directory` property to target an alternative directory.
+Change the `directory` property to target an alternative directory. The `directory` property can be an absolute or relative path. A relative path is relative to the location of the JSON configuration file.
 
 An example of a valid configuration can be found at
 `file_server/v0.1/file_server.example.json`
