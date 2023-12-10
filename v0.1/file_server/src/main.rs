@@ -37,7 +37,7 @@ async fn main() {
 
 		let io = TokioIo::new(stream);
 		let service = responses::Svc{
-			directory: path::PathBuf::from(&config.directory),
+			directory: config.directory.clone(),
 		};
 		
 		// print or log errors here
