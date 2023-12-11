@@ -87,10 +87,3 @@ fn combine_pathbuff(
     fp.canonicalize()
 }
 
-pub fn config_to_string(config: &Config) -> Result<String, serde_json::Error> {
-    match serde_json::to_string(config) {
-        Ok(s) => Ok(s),
-        Err(e) => Err(e)
-    }
-}
-
