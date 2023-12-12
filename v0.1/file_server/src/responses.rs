@@ -234,10 +234,9 @@ async fn build_response(
 ) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
 		match File::open(&path).await {
 			Ok(file) => {
+				// as recommended by the hyper send_file example
 				let content_type = get_content_type(&path);
-				// Wrap to a tokio_util::io::ReaderStream
 				let reader_stream = ReaderStream::new(file);
-				// Convert to http_body_util::BoxBody
 				let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
 				let boxed_body = stream_body.boxed();
 				

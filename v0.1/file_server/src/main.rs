@@ -1,15 +1,18 @@
 use std::env;
 use std::path;
 
-use hyper::server::conn::http1;
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
 
 use config;
 
 mod responses;
 
-
+/*
+verify
+  - use path of request to avoid hash tags and stuff
+*/
 #[tokio::main]
 async fn main() {
 	let args = match env::args().nth(1) {
@@ -42,7 +45,7 @@ async fn main() {
 		
 		// print or log errors here
 		tokio::task::spawn(async move {
-			http1::Builder::new()
+			Builder::new(TokioExecutor::new())
 				.serve_connection(io, service)
 				.await
 		});
