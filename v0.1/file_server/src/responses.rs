@@ -234,7 +234,7 @@ async fn build_response(
 ) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
 		match File::open(&path).await {
 			Ok(file) => {
-				// as recommended by the hyper send_file example
+				// from https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
 				let content_type = get_content_type(&path);
 				let reader_stream = ReaderStream::new(file);
 				let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
