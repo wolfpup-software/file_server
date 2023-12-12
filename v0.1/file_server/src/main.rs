@@ -9,10 +9,7 @@ use config;
 
 mod responses;
 
-/*
-verify
-  - use path of request to avoid hash tags and stuff
-*/
+
 #[tokio::main]
 async fn main() {
 	let args = match env::args().nth(1) {
@@ -37,7 +34,6 @@ async fn main() {
 			Err(e) => return println!("socket error:\n{}", e),
 		};
 		
-
 		let io = TokioIo::new(stream);
 		let service = responses::Svc{
 			directory: config.directory.clone(),
