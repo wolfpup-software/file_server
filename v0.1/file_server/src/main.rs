@@ -1,8 +1,8 @@
 use std::env;
 use std::path;
 
-use hyper::server::conn::http1;
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
 
 use config;
@@ -34,7 +34,6 @@ async fn main() {
 			Err(e) => return println!("socket error:\n{}", e),
 		};
 		
-
 		let io = TokioIo::new(stream);
 		let service = responses::Svc{
 			directory: config.directory.clone(),
@@ -42,7 +41,7 @@ async fn main() {
 		
 		// print or log errors here
 		tokio::task::spawn(async move {
-			http1::Builder::new()
+			Builder::new(TokioExecutor::new())
 				.serve_connection(io, service)
 				.await
 		});
