@@ -7,7 +7,7 @@
 
 A JSON configuration file is required to run `file_server`.
 
-Configuration files use use the following schema:
+Configuration file schema:
 
 ```
 {

@@ -3,7 +3,6 @@ use std::io;
 use std::path;
 use std::pin::Pin;
 
-
 use futures_util::TryStreamExt;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::{Request, Response, StatusCode};
@@ -109,49 +108,18 @@ const OCTET_STREAM: &str = "application/octet-stream";
 const WASM_EXT: &str = "wasm";
 const WASM: &str = "application/wasm";
 
-
-pub struct Svc {
-	pub directory: path::PathBuf,
-}
-
-impl Service<Request<IncomingBody>> for Svc {
-	type Response = Response<BoxBody<bytes::Bytes, std::io::Error>>;
-	type Error = hyper::http::Error;
-	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-	fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-		let path = match get_pathbuff_from_request(
-			&self.directory,
-			&req,
-		) {
-			Ok(p) => p,
-			Err(_err) =>  {
-				return Box::pin(async {response_404()});
-			},
-		};
-		
-		if !path.starts_with(&self.directory) {
-			return Box::pin(async {response_404()});
-		}
-		
-		Box::pin(async {
-		  build_response(path).await
-		})
-	}
-}
-
 fn get_pathbuff_from_request(
 	dir: &path::PathBuf,
 	req: &Request<IncomingBody>,
 ) -> Result<path::PathBuf, io::Error> {
-	let uri = req.uri().path();
-	let strip_uri = match uri.strip_prefix(FWD_SLASH) {
+	let uri_path = req.uri().path();
+	let strip_path = match uri_path.strip_prefix(FWD_SLASH) {
 		Some(p) => p,
-		None => uri,
+		None => uri_path,
 	};
 
 	// just join the directory again, use a match
-	let mut path = dir.join(strip_uri);
+	let mut path = dir.join(strip_path);
 	if path.is_dir() {
 		path.push(INDEX);
 		path.set_extension(HTML_EXT);
@@ -160,54 +128,60 @@ fn get_pathbuff_from_request(
 	path.canonicalize()
 }
 
-fn get_content_type(request_path: &path::PathBuf) -> &str {
-	let extension = match request_path.extension() {
+fn get_content_type(path: &path::PathBuf) -> &str {
+	/* 
+		Text files with no extension.
+		This case never happens because a request with no extension
+		will be interpreted as a directory + /index.html before this
+		function is evalutated.
+		Best to error / default to HTML here.
+	*/
+	let extension = match path.extension() {
 		Some(ext) => {
 			match ext.to_str() {
 				Some(e) => e,
-				_ => TEXT,
+				_ => return HTML,
 			}
 		},
-		// text files with no extension
-		_ => TEXT, 
+		_ => return HTML, 
 	};
 
 	match extension {
-		CSS_EXT => CSS,
-		JS_EXT => JS,
-		JSON_EXT => JSON,
-		TSV_EXT => TSV,
-		M3U8_EXT => M3U8,
-		SVG_EXT => SVG,
-		PNG_EXT => PNG,
-		PDF_EXT => PDF,
-		GIF_EXT => GIF,
-		JPEG_EXT => JPEG,
-		JPG_EXT => JPEG,
-		TTF_EXT => TTF,
-		WOFF_EXT => WOFF,
-		WOFF2_EXT => WOFF2,
-		OTF_EXT => OTF,
-		HTML_EXT => HTML,
-		GZIP_EXT => GZIP,
-		ICO_EXT => ICO,
 		AAC_EXT => AAC,
 		BMP_EXT => BMP,
+		CSS_EXT => CSS,
 		CSV_EXT => CSV,
 		FLAC_EXT => FLAC,
+		GIF_EXT => GIF,
+		GZIP_EXT => GZIP,
+		HTML_EXT => HTML,
+		ICO_EXT => ICO,
+		JPEG_EXT => JPEG,
+		JPG_EXT => JPEG,
+		JS_EXT => JS,
+		JSON_EXT => JSON,
+		M3U8_EXT => M3U8,
 		MIDI_EXT => MIDI,
 		MP3_EXT => MP3,
 		MP4_EXT => MP4,
 		MPEG_EXT => MPEG,
 		OGGA_EXT => OGGA,
 		OGGV_EXT => OGGV,
+		OTF_EXT => OTF,
+		PDF_EXT => PDF,
+		PNG_EXT => PNG,
+		SVG_EXT => SVG,
 		TEXT_EXT => TEXT,
 		TIFF_EXT => TIFF,
+		TSV_EXT => TSV,
+		TTF_EXT => TTF,
 		WASM_EXT => WASM,
 		WAV_EXT => WAV,
 		WEBA_EXT => WEBA,
 		WEBM_EXT => WEBM,
 		WEBP_EXT => WEBP,
+		WOFF2_EXT => WOFF2,
+		WOFF_EXT => WOFF,
 		XML_EXT => XML,
 		ZIP_EXT => ZIP,
 		_ => OCTET_STREAM,
@@ -247,5 +221,36 @@ async fn build_response(
 			},
 			_ => response_500()
 		}
+}
+
+pub struct Svc {
+	pub directory: path::PathBuf,
+}
+
+impl Service<Request<IncomingBody>> for Svc {
+	type Response = Response<BoxBody<bytes::Bytes, std::io::Error>>;
+	type Error = hyper::http::Error;
+	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+	fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+		let path = match get_pathbuff_from_request(
+			&self.directory,
+			&req,
+		) {
+			Ok(p) => p,
+			Err(_err) =>  {
+				return Box::pin(async {response_404()});
+			},
+		};
+		
+		// bound accessible files to directory
+		if !path.starts_with(&self.directory) {
+			return Box::pin(async {response_404()});
+		}
+		
+		Box::pin(async {
+		  build_response(path).await
+		})
+	}
 }
 

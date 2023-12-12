@@ -14,7 +14,7 @@ mod responses;
 async fn main() {
 	let args = match env::args().nth(1) {
 		Some(a) => path::PathBuf::from(a),
-		None => return println!("argument error:\nconfig file was not found."),
+		None => return println!("argument error:\nconfig file not found."),
 	};
 
 	let config = match config::Config::from_filepath(&args) {
