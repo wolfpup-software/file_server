@@ -5,10 +5,11 @@ use std::pin::Pin;
 
 use futures_util::TryStreamExt;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
-use hyper::{Request, Response, StatusCode};
 use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, CONTENT_TYPE};
+use hyper::http::{Request, Response};
 use hyper::service::Service;
+use hyper::{StatusCode};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
@@ -188,24 +189,27 @@ fn get_content_type(path: &path::PathBuf) -> &str {
 	}
 }
 
-fn response_404() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
-  Response::builder()
-		.status(StatusCode::NOT_FOUND)
-		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		// painful, more ergonomic?
-		.body(Full::new(NOT_FOUND.into()).map_err(|e| match e {}).boxed())
-}
-
-fn response_500() -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
+fn http_code_response(
+	code: &StatusCode,
+	body: &'static str,
+) -> Result<
+	Response<
+		BoxBody<
+			bytes::Bytes,
+			std::io::Error
+		>
+	>,
+	hyper::http::Error
+> {
 	Response::builder()
-		.status(StatusCode::INTERNAL_SERVER_ERROR)
+		.status(code)
 		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		.body(Full::new(INTERNAL_SERVER_ERROR.into()).map_err(|e| match e {}).boxed())
+		.body(Full::new(bytes::Bytes::from(body)).map_err(|e| match e {}).boxed())
 }
 
 async fn build_response(
 	path: path::PathBuf,
-) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
+) -> Result<Response<BoxBody<bytes::Bytes, io::Error>>, hyper::http::Error> {
 		match File::open(&path).await {
 			Ok(file) => {
 				// from https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
@@ -219,7 +223,7 @@ async fn build_response(
 					.header(CONTENT_TYPE, content_type)
 					.body(boxed_body)
 			},
-			_ => response_500()
+			_ => http_code_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR)
 		}
 }
 
@@ -228,29 +232,21 @@ pub struct Svc {
 }
 
 impl Service<Request<IncomingBody>> for Svc {
-	type Response = Response<BoxBody<bytes::Bytes, std::io::Error>>;
+	type Response = Response<BoxBody<bytes::Bytes, io::Error>>;
 	type Error = hyper::http::Error;
 	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
 	fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-		let path = match get_pathbuff_from_request(
-			&self.directory,
-			&req,
-		) {
-			Ok(p) => p,
-			Err(_err) =>  {
-				return Box::pin(async {response_404()});
-			},
-		};
-		
-		// bound accessible files to directory
-		if !path.starts_with(&self.directory) {
-			return Box::pin(async {response_404()});
+		if let Ok(path) = get_pathbuff_from_request(&self.directory, &req) {
+			// confirm canon'd path resides in directory
+			if path.starts_with(&self.directory) {
+				return Box::pin(async {
+					build_response(path).await
+				})
+			}
 		}
 		
-		Box::pin(async {
-		  build_response(path).await
-		})
+		Box::pin(async {http_code_response(&StatusCode::NOT_FOUND, &NOT_FOUND)})
 	}
 }
 
