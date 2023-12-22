@@ -132,19 +132,17 @@ fn get_pathbuff_from_request(
 fn get_content_type(path: &path::PathBuf) -> &str {
 	/* 
 		Text files with no extension.
-		This case never happens because a request with no extension
-		will be interpreted as a directory + /index.html before this
-		function is evalutated.
-		Best to error / default to HTML here.
+		A file with no extention is still a textfile.
+		Directories would be transformed into a index.html path.
 	*/
 	let extension = match path.extension() {
 		Some(ext) => {
 			match ext.to_str() {
 				Some(e) => e,
-				_ => return HTML,
+				_ => return TEXT,
 			}
 		},
-		_ => return HTML, 
+		_ => return TEXT, 
 	};
 
 	match extension {
@@ -210,21 +208,24 @@ fn http_code_response(
 async fn build_response(
 	path: path::PathBuf,
 ) -> Result<Response<BoxBody<bytes::Bytes, io::Error>>, hyper::http::Error> {
-		match File::open(&path).await {
-			Ok(file) => {
-				// from https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-				let content_type = get_content_type(&path);
-				let reader_stream = ReaderStream::new(file);
-				let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-				let boxed_body = stream_body.boxed();
-				
-				Response::builder()
-					.status(StatusCode::OK)
-					.header(CONTENT_TYPE, content_type)
-					.body(boxed_body)
-			},
-			_ => http_code_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR)
-		}
+	match File::open(&path).await {
+		Ok(file) => {
+			// https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+			let content_type = get_content_type(&path);
+			let reader_stream = ReaderStream::new(file);
+			let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+			let boxed_body = stream_body.boxed();
+			
+			Response::builder()
+				.status(StatusCode::OK)
+				.header(CONTENT_TYPE, content_type)
+				.body(boxed_body)
+		},
+		_ => http_code_response(
+			&StatusCode::INTERNAL_SERVER_ERROR,
+			&INTERNAL_SERVER_ERROR,
+		)
+	}
 }
 
 pub struct Svc {
