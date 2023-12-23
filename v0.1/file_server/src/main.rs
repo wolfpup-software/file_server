@@ -28,10 +28,14 @@ async fn main() {
 		Err(e) => return println!("tcp listener error:\n{}", e),
 	};
 
+	// try not to panic during server loop
 	loop {
-		let (stream, _) = match listener.accept().await {
+		let (stream, _remote_address) = match listener.accept().await {
 			Ok(s) => s,
-			Err(e) => return println!("socket error:\n{}", e),
+			_ => {
+				// log socket errors here
+				continue;
+			}
 		};
 		
 		let io = TokioIo::new(stream);
@@ -39,8 +43,8 @@ async fn main() {
 			directory: config.directory.clone(),
 		};
 		
-		// print or log errors here
 		tokio::task::spawn(async move {
+			// log response errors here
 			Builder::new(TokioExecutor::new())
 				.serve_connection(io, service)
 				.await

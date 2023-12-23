@@ -7,7 +7,7 @@
 
 A JSON configuration file is required to run `file_server`.
 
-Configuration file schema:
+Configuration schema:
 
 ```
 {
@@ -23,16 +23,8 @@ Change the `port` property to serve from a different port.
 
 Change the `directory` property to target an alternative directory. The `directory` property can be an absolute or relative path. A relative path is relative to the location of the JSON configuration file.
 
-An example of a valid configuration can be found at
+A valid configuration example can be found at
 `file_server/v0.1/file_server.example.json`
-
-```json
-{
-  "host": "127.0.0.1",
-  "port": 3000,
-  "directory": "../demo"
-}
-```
 
 ## Install file_server
 
