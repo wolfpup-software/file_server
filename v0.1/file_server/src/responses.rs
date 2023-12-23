@@ -15,7 +15,7 @@ use tokio_util::io::ReaderStream;
 
 
 const FWD_SLASH: &str = "/";
-const INDEX: &str = "index";
+const INDEX: &str = "index.html";
 const NOT_FOUND: &str = "404 not found";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 
@@ -119,33 +119,30 @@ fn get_pathbuff_from_request(
 		None => uri_path,
 	};
 
-	// just join the directory again, use a match
-	let mut path = dir.join(strip_path);
+	let path = dir.join(strip_path);
 	if path.is_dir() {
-		path.push(INDEX);
-		path.set_extension(HTML_EXT);
+		return path.join(INDEX).canonicalize();
 	}
-
+	
 	path.canonicalize()
 }
 
 fn get_content_type(path: &path::PathBuf) -> &str {
-	/* 
-		Text files with no extension.
+	/*
 		A file with no extention is still a textfile.
 		Directories would be transformed into a index.html path.
 	*/
 	let extension = match path.extension() {
-		Some(ext) => {
-			match ext.to_str() {
-				Some(e) => e,
-				_ => return TEXT,
-			}
-		},
+		Some(ext) => ext,
 		_ => return TEXT, 
 	};
+	
+	let ext_str =	match extension.to_str() {
+		Some(e) => e,
+		_ => return TEXT,
+	};
 
-	match extension {
+	match ext_str {
 		AAC_EXT => AAC,
 		BMP_EXT => BMP,
 		CSS_EXT => CSS,

@@ -32,7 +32,7 @@ async fn main() {
 	loop {
 		let (stream, _remote_address) = match listener.accept().await {
 			Ok(s) => s,
-			Err(_) => {
+			_ => {
 				// log socket errors here
 				continue;
 			}
