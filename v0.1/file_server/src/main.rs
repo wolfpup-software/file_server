@@ -5,8 +5,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
 
-use config;
-
+mod config;
 mod responses;
 
 
@@ -22,7 +21,7 @@ async fn main() {
 		Err(e) => return println!("configuration error:\n{}", e),
 	};
 
-	let address = format!("{}:{}", config.host, config.port);
+	let address = config.host.clone() + ":" + &config.port.to_string();
 	let listener = match TcpListener::bind(address).await {
 		Ok(l) => l,
 		Err(e) => return println!("tcp listener error:\n{}", e),
