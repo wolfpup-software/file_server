@@ -21,7 +21,7 @@ async fn main() {
 		Err(e) => return println!("configuration error:\n{}", e),
 	};
 
-	let address = format!("{}:{}", config.host, config.port);
+	let address = config.host.clone() + ":" + &config.port.to_string();
 	let listener = match TcpListener::bind(address).await {
 		Ok(l) => l,
 		Err(e) => return println!("tcp listener error:\n{}", e),

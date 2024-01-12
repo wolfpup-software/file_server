@@ -1,4 +1,3 @@
-use std::env;
 use std::fmt;
 use std::fs;
 use std::path;
@@ -36,18 +35,13 @@ pub struct Config {
 impl Config {
   pub fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigError> {
     // get position relative to working directory
-    let working_dir = match env::current_dir() {
-      Ok(pb) => pb,
-      Err(e) => return Err(ConfigError::IoError(e))
-    };
-    
-    let config_pathbuff = match combine_pathbuff(&working_dir.to_path_buf(), filepath) {
+    let config_pathbuff = match filepath.canonicalize() {
       Ok(pb) => pb,
       Err(e) => return Err(ConfigError::IoError(e))
     };
 
     let parent_dir = match config_pathbuff.parent() {
-      Some(p) => p.to_path_buf(),
+      Some(p) => p,
       _ =>  return Err(ConfigError::GenericError(PARENT_NOT_FOUND_ERR))
     };
 
@@ -56,12 +50,13 @@ impl Config {
       Err(e) => return Err(ConfigError::IoError(e))
     };
 
-    let config: Config = match serde_json::from_str(&json_as_str) {
+		// mutable to update the directory relative to config filepath
+    let mut config: Config = match serde_json::from_str(&json_as_str) {
       Ok(j) => j,
       Err(e) => return Err(ConfigError::JsonError(e))
     };
     
-    let directory = match combine_pathbuff(&parent_dir, &config.directory) {
+    let directory = match parent_dir.join(&config.directory).canonicalize() {
       Ok(j) => j,
       Err(e) =>  return Err(ConfigError::IoError(e))
     };
@@ -69,18 +64,9 @@ impl Config {
       return Err(ConfigError::GenericError(DIR_IS_NOT_DIR_ERR))
     }
     
-    Ok(Config {
-      host: config.host,
-      port: config.port,
-      directory: directory,
-    })
+    config.directory = directory;
+    
+    Ok(config)
   }
-}
-
-fn combine_pathbuff(
-	base_dir: &path::PathBuf,
-	filepath: &path::PathBuf,
-) -> Result<path::PathBuf, std::io::Error> {
-  base_dir.join(filepath).canonicalize()
 }
 
