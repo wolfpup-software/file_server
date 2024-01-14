@@ -9,10 +9,9 @@ use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::service::Service;
-use hyper::{StatusCode};
+use hyper::StatusCode;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
-
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
@@ -110,141 +109,130 @@ const WASM_EXT: &str = "wasm";
 const WASM: &str = "application/wasm";
 
 fn get_pathbuff_from_request(
-	dir: &path::PathBuf,
-	req: &Request<IncomingBody>,
+    dir: &path::PathBuf,
+    req: &Request<IncomingBody>,
 ) -> Result<path::PathBuf, io::Error> {
-	let uri_path = req.uri().path();
-	let strip_path = match uri_path.strip_prefix(FWD_SLASH) {
-		Some(p) => p,
-		None => uri_path,
-	};
+    let uri_path = req.uri().path();
+    let strip_path = match uri_path.strip_prefix(FWD_SLASH) {
+        Some(p) => dir.join(strip_path),
+        None => uri_path,
+    };
 
-	let path = dir.join(strip_path);
-	if path.is_dir() {
-		return path.join(INDEX).canonicalize();
-	}
-	
-	path.canonicalize()
+    if path.is_dir() {
+        return path.join(INDEX).canonicalize();
+    }
+
+    path.canonicalize()
 }
 
 fn get_content_type(path: &path::PathBuf) -> &str {
-	/*
-		A file with no extention is still a textfile.
-		Directories would be transformed into a index.html path.
-	*/
-	let extension = match path.extension() {
-		Some(ext) => ext,
-		_ => return TEXT, 
-	};
-	
-	let ext_str =	match extension.to_str() {
-		Some(e) => e,
-		_ => return TEXT,
-	};
+    /*
+        A file with no extention is still a textfile.
+        Directories would be transformed into a index.html path.
+    */
+    let extension = match path.extension() {
+        Some(ext) => ext,
+        _ => return TEXT,
+    };
 
-	match ext_str {
-		AAC_EXT => AAC,
-		BMP_EXT => BMP,
-		CSS_EXT => CSS,
-		CSV_EXT => CSV,
-		FLAC_EXT => FLAC,
-		GIF_EXT => GIF,
-		GZIP_EXT => GZIP,
-		HTML_EXT => HTML,
-		ICO_EXT => ICO,
-		JPEG_EXT => JPEG,
-		JPG_EXT => JPEG,
-		JS_EXT => JS,
-		JSON_EXT => JSON,
-		M3U8_EXT => M3U8,
-		MIDI_EXT => MIDI,
-		MP3_EXT => MP3,
-		MP4_EXT => MP4,
-		MPEG_EXT => MPEG,
-		OGGA_EXT => OGGA,
-		OGGV_EXT => OGGV,
-		OTF_EXT => OTF,
-		PDF_EXT => PDF,
-		PNG_EXT => PNG,
-		SVG_EXT => SVG,
-		TEXT_EXT => TEXT,
-		TIFF_EXT => TIFF,
-		TSV_EXT => TSV,
-		TTF_EXT => TTF,
-		WASM_EXT => WASM,
-		WAV_EXT => WAV,
-		WEBA_EXT => WEBA,
-		WEBM_EXT => WEBM,
-		WEBP_EXT => WEBP,
-		WOFF2_EXT => WOFF2,
-		WOFF_EXT => WOFF,
-		XML_EXT => XML,
-		ZIP_EXT => ZIP,
-		_ => OCTET_STREAM,
-	}
+    let ext_str = match extension.to_str() {
+        Some(e) => e,
+        _ => return TEXT,
+    };
+
+    match ext_str {
+        AAC_EXT => AAC,
+        BMP_EXT => BMP,
+        CSS_EXT => CSS,
+        CSV_EXT => CSV,
+        FLAC_EXT => FLAC,
+        GIF_EXT => GIF,
+        GZIP_EXT => GZIP,
+        HTML_EXT => HTML,
+        ICO_EXT => ICO,
+        JPEG_EXT => JPEG,
+        JPG_EXT => JPEG,
+        JS_EXT => JS,
+        JSON_EXT => JSON,
+        M3U8_EXT => M3U8,
+        MIDI_EXT => MIDI,
+        MP3_EXT => MP3,
+        MP4_EXT => MP4,
+        MPEG_EXT => MPEG,
+        OGGA_EXT => OGGA,
+        OGGV_EXT => OGGV,
+        OTF_EXT => OTF,
+        PDF_EXT => PDF,
+        PNG_EXT => PNG,
+        SVG_EXT => SVG,
+        TEXT_EXT => TEXT,
+        TIFF_EXT => TIFF,
+        TSV_EXT => TSV,
+        TTF_EXT => TTF,
+        WASM_EXT => WASM,
+        WAV_EXT => WAV,
+        WEBA_EXT => WEBA,
+        WEBM_EXT => WEBM,
+        WEBP_EXT => WEBP,
+        WOFF2_EXT => WOFF2,
+        WOFF_EXT => WOFF,
+        XML_EXT => XML,
+        ZIP_EXT => ZIP,
+        _ => OCTET_STREAM,
+    }
 }
 
 fn http_code_response(
-	code: &StatusCode,
-	body: &'static str,
-) -> Result<
-	Response<
-		BoxBody<
-			bytes::Bytes,
-			std::io::Error
-		>
-	>,
-	hyper::http::Error
-> {
-	Response::builder()
-		.status(code)
-		.header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-		.body(Full::new(bytes::Bytes::from(body)).map_err(|e| match e {}).boxed())
+    code: &StatusCode,
+    body: &'static str,
+) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
+    Response::builder()
+        .status(code)
+        .header(CONTENT_TYPE, HeaderValue::from_static(HTML))
+        .body(
+            Full::new(bytes::Bytes::from(body))
+                .map_err(|e| match e {})
+                .boxed(),
+        )
 }
 
 async fn build_response(
-	path: path::PathBuf,
+    path: path::PathBuf,
 ) -> Result<Response<BoxBody<bytes::Bytes, io::Error>>, hyper::http::Error> {
-	match File::open(&path).await {
-		Ok(file) => {
-			// https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-			let content_type = get_content_type(&path);
-			let reader_stream = ReaderStream::new(file);
-			let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-			let boxed_body = stream_body.boxed();
-			
-			Response::builder()
-				.status(StatusCode::OK)
-				.header(CONTENT_TYPE, content_type)
-				.body(boxed_body)
-		},
-		_ => http_code_response(
-			&StatusCode::INTERNAL_SERVER_ERROR,
-			&INTERNAL_SERVER_ERROR,
-		)
-	}
+    match File::open(&path).await {
+        Ok(file) => {
+            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+            let content_type = get_content_type(&path);
+            let reader_stream = ReaderStream::new(file);
+            let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+            let boxed_body = stream_body.boxed();
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, content_type)
+                .body(boxed_body)
+        }
+        _ => http_code_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
+    }
 }
 
 pub struct Svc {
-	pub directory: path::PathBuf,
+    pub directory: path::PathBuf,
 }
 
 impl Service<Request<IncomingBody>> for Svc {
-	type Response = Response<BoxBody<bytes::Bytes, io::Error>>;
-	type Error = hyper::http::Error;
-	type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Response = Response<BoxBody<bytes::Bytes, io::Error>>;
+    type Error = hyper::http::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-	fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-		if let Ok(path) = get_pathbuff_from_request(&self.directory, &req) {
-			// confirm canon'd path resides in directory
-			if path.starts_with(&self.directory) {
-				return Box::pin(async {
-					build_response(path).await
-				})
-			}
-		}
-		
-		Box::pin(async {http_code_response(&StatusCode::NOT_FOUND, &NOT_FOUND)})
-	}
+    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+        if let Ok(path) = get_pathbuff_from_request(&self.directory, &req) {
+            // confirm canon'd path resides in directory
+            if path.starts_with(&self.directory) {
+                return Box::pin(async { build_response(path).await });
+            }
+        }
+
+        Box::pin(async { http_code_response(&StatusCode::NOT_FOUND, &NOT_FOUND) })
+    }
 }
-
