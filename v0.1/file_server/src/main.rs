@@ -15,7 +15,7 @@ async fn main() {
         None => return println!("argument error:\nconfig file not found."),
     };
 
-    let config = match config::from_filepath(&args) {
+    let config = match config::from_filepath(&args).await {
         Ok(c) => c,
         Err(e) => return println!("configuration error:\n{}", e),
     };
@@ -32,6 +32,7 @@ async fn main() {
             Ok(s) => s,
             _ => {
                 // log socket errors here
+                // perhaps a place for a graceful shutdown
                 continue;
             }
         };

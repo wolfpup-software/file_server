@@ -109,20 +109,21 @@ const WASM_EXT: &str = "wasm";
 const WASM: &str = "application/wasm";
 
 fn get_pathbuff_from_request(
-    dir: &path::PathBuf,
+    dir: &path::Path,
     req: &Request<IncomingBody>,
 ) -> Result<path::PathBuf, io::Error> {
+		// get path and strip forward slash
     let uri_path = req.uri().path();
     let strip_path = match uri_path.strip_prefix(FWD_SLASH) {
-        Some(p) => dir.join(strip_path),
-        None => uri_path,
+        Some(p) => dir.join(p),
+        _ => dir.join(uri_path),
     };
 
-    if path.is_dir() {
-        return path.join(INDEX).canonicalize();
+    if strip_path.is_dir() {
+        return strip_path.join(INDEX).canonicalize();
     }
 
-    path.canonicalize()
+    strip_path.canonicalize()
 }
 
 fn get_content_type(path: &path::PathBuf) -> &str {

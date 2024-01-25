@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fs;
+use tokio::fs;
 use std::path;
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ pub struct Config {
     pub directory: path::PathBuf,
 }
 
-pub fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigError> {
+pub async fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigError> {
     // get position relative to working directory
     let config_pathbuff = match filepath.canonicalize() {
         Ok(pb) => pb,
@@ -43,13 +43,13 @@ pub fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigError> {
         _ => return Err(ConfigError::GenericError(PARENT_NOT_FOUND_ERR)),
     };
 
-    let json_reader = match fs::File::open(&config_pathbuff) {
+    let config_json = match fs::read_to_string(&config_pathbuff).await {
         Ok(r) => r,
         Err(e) => return Err(ConfigError::IoError(e)),
     };
 
     // update the directory relative to config filepath
-    let mut config: Config = match serde_json::from_reader(&json_reader) {
+    let mut config: Config = match serde_json::from_str(&config_json) {
         Ok(j) => j,
         Err(e) => return Err(ConfigError::JsonError(e)),
     };
