@@ -1,17 +1,14 @@
 use std::fmt;
-use tokio::fs;
 use std::path;
+use tokio::fs;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-const PARENT_NOT_FOUND_ERR: &str = "parent directory of config not found";
-const DIR_IS_NOT_DIR_ERR: &str = "config.directory is not a directory";
-
 pub enum ConfigError<'a> {
     IoError(std::io::Error),
     JsonError(serde_json::Error),
-    GenericError(&'a str),
+    Error(&'a str),
 }
 
 impl fmt::Display for ConfigError<'_> {
@@ -19,7 +16,7 @@ impl fmt::Display for ConfigError<'_> {
         match self {
             ConfigError::IoError(io_error) => write!(f, "{}", io_error),
             ConfigError::JsonError(json_error) => write!(f, "{}", json_error),
-            ConfigError::GenericError(generic_error) => write!(f, "{}", generic_error),
+            ConfigError::Error(error_str) => write!(f, "{}", error_str),
         }
     }
 }
@@ -37,29 +34,32 @@ pub async fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigErr
         Ok(pb) => pb,
         Err(e) => return Err(ConfigError::IoError(e)),
     };
-
     let parent_dir = match config_pathbuff.parent() {
         Some(p) => p,
-        _ => return Err(ConfigError::GenericError(PARENT_NOT_FOUND_ERR)),
+        _ => {
+            return Err(ConfigError::Error(
+                "parent directory of config file does not exist.",
+            ))
+        }
     };
 
-    let config_json = match fs::read_to_string(&config_pathbuff).await {
+    let json_str = match fs::read_to_string(&config_pathbuff).await {
         Ok(r) => r,
         Err(e) => return Err(ConfigError::IoError(e)),
     };
 
-    // update the directory relative to config filepath
-    let mut config: Config = match serde_json::from_str(&config_json) {
+    let mut config: Config = match serde_json::from_str(&json_str) {
         Ok(j) => j,
         Err(e) => return Err(ConfigError::JsonError(e)),
     };
 
+    // update the directory relative to config filepath
     let directory = match parent_dir.join(&config.directory).canonicalize() {
         Ok(j) => j,
         Err(e) => return Err(ConfigError::IoError(e)),
     };
     if !directory.is_dir() {
-        return Err(ConfigError::GenericError(DIR_IS_NOT_DIR_ERR));
+        return Err(ConfigError::Error("config.directory is not a directory"));
     }
 
     config.directory = directory;

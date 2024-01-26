@@ -1,21 +1,15 @@
-use std::future::Future;
-use std::io;
-use std::path;
-use std::pin::Pin;
-
 use futures_util::TryStreamExt;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::http::{Request, Response};
-use hyper::service::Service;
 use hyper::StatusCode;
+use std::{io, path};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
-const NOT_FOUND: &str = "404 not found";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 
 // TEXT
@@ -108,11 +102,13 @@ const OCTET_STREAM: &str = "application/octet-stream";
 const WASM_EXT: &str = "wasm";
 const WASM: &str = "application/wasm";
 
-fn get_pathbuff_from_request(
+pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
+
+pub fn get_pathbuff_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
 ) -> Result<path::PathBuf, io::Error> {
-		// get path and strip forward slash
+    // get path and strip forward slash
     let uri_path = req.uri().path();
     let strip_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => dir.join(p),
@@ -126,11 +122,41 @@ fn get_pathbuff_from_request(
     strip_path.canonicalize()
 }
 
+pub fn create_error_response(
+    code: &StatusCode,
+    body: &'static str,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    Response::builder()
+        .status(code)
+        .header(CONTENT_TYPE, HeaderValue::from_static(HTML))
+        .body(
+            Full::new(bytes::Bytes::from(body))
+                .map_err(|e| match e {})
+                .boxed(),
+        )
+}
+
+pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper::http::Error> {
+    match File::open(&path).await {
+        Ok(file) => {
+            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+            let content_type = get_content_type(&path);
+            let reader_stream = ReaderStream::new(file);
+            let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+            let boxed_body = stream_body.boxed();
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, content_type)
+                .body(boxed_body)
+        }
+        _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
+    }
+}
+
 fn get_content_type(path: &path::PathBuf) -> &str {
-    /*
-        A file with no extention is still a textfile.
-        Directories would be transformed into a index.html path.
-    */
+    // A file with no extention is still a textfile.
+    // Directories would be transformed into a index.html path.
     let extension = match path.extension() {
         Some(ext) => ext,
         _ => return TEXT,
@@ -180,60 +206,5 @@ fn get_content_type(path: &path::PathBuf) -> &str {
         XML_EXT => XML,
         ZIP_EXT => ZIP,
         _ => OCTET_STREAM,
-    }
-}
-
-fn http_code_response(
-    code: &StatusCode,
-    body: &'static str,
-) -> Result<Response<BoxBody<bytes::Bytes, std::io::Error>>, hyper::http::Error> {
-    Response::builder()
-        .status(code)
-        .header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-        .body(
-            Full::new(bytes::Bytes::from(body))
-                .map_err(|e| match e {})
-                .boxed(),
-        )
-}
-
-async fn build_response(
-    path: path::PathBuf,
-) -> Result<Response<BoxBody<bytes::Bytes, io::Error>>, hyper::http::Error> {
-    match File::open(&path).await {
-        Ok(file) => {
-            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-            let content_type = get_content_type(&path);
-            let reader_stream = ReaderStream::new(file);
-            let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-            let boxed_body = stream_body.boxed();
-
-            Response::builder()
-                .status(StatusCode::OK)
-                .header(CONTENT_TYPE, content_type)
-                .body(boxed_body)
-        }
-        _ => http_code_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
-    }
-}
-
-pub struct Svc {
-    pub directory: path::PathBuf,
-}
-
-impl Service<Request<IncomingBody>> for Svc {
-    type Response = Response<BoxBody<bytes::Bytes, io::Error>>;
-    type Error = hyper::http::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        if let Ok(path) = get_pathbuff_from_request(&self.directory, &req) {
-            // confirm canon'd path resides in directory
-            if path.starts_with(&self.directory) {
-                return Box::pin(async { build_response(path).await });
-            }
-        }
-
-        Box::pin(async { http_code_response(&StatusCode::NOT_FOUND, &NOT_FOUND) })
     }
 }
