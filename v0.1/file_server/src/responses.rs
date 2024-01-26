@@ -127,10 +127,8 @@ fn get_pathbuff_from_request(
 }
 
 fn get_content_type(path: &path::PathBuf) -> &str {
-    /*
-        A file with no extention is still a textfile.
-        Directories would be transformed into a index.html path.
-    */
+    // A file with no extention is still a textfile.
+    // Directories would be transformed into a index.html path.
     let extension = match path.extension() {
         Some(ext) => ext,
         _ => return TEXT,

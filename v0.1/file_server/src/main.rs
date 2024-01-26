@@ -14,7 +14,6 @@ async fn main() {
         Some(a) => path::PathBuf::from(a),
         None => return println!("argument error:\nconfig file not found."),
     };
-
     let config = match config::from_filepath(&args).await {
         Ok(c) => c,
         Err(e) => return println!("configuration error:\n{}", e),
@@ -32,7 +31,7 @@ async fn main() {
             Ok(s) => s,
             _ => {
                 // log socket errors here
-                // perhaps a place for a graceful shutdown
+                // perhaps a graceful shutdown
                 continue;
             }
         };
@@ -43,7 +42,7 @@ async fn main() {
         };
 
         tokio::task::spawn(async move {
-            // log response errors here
+            // log service errors here
             Builder::new(TokioExecutor::new())
                 .serve_connection(io, service)
                 .await
