@@ -7,6 +7,7 @@ use tokio::net::TcpListener;
 
 mod config;
 mod responses;
+mod service;
 
 #[tokio::main]
 async fn main() {
@@ -37,7 +38,7 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let service = responses::Svc {
+        let service = service::Svc {
             directory: config.directory.clone(),
         };
 

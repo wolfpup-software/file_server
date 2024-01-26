@@ -1,6 +1,6 @@
 use std::fmt;
-use tokio::fs;
 use std::path;
+use tokio::fs;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -36,19 +36,23 @@ pub async fn from_filepath(filepath: &path::PathBuf) -> Result<Config, ConfigErr
     };
     let parent_dir = match config_pathbuff.parent() {
         Some(p) => p,
-        _ => return Err(ConfigError::Error("parent directory of config file does not exist.")),
+        _ => {
+            return Err(ConfigError::Error(
+                "parent directory of config file does not exist.",
+            ))
+        }
     };
 
-    let config_json = match fs::read_to_string(&config_pathbuff).await {
+    let json_str = match fs::read_to_string(&config_pathbuff).await {
         Ok(r) => r,
         Err(e) => return Err(ConfigError::IoError(e)),
     };
 
-    let mut config: Config = match serde_json::from_str(&config_json) {
+    let mut config: Config = match serde_json::from_str(&json_str) {
         Ok(j) => j,
         Err(e) => return Err(ConfigError::JsonError(e)),
     };
-    
+
     // update the directory relative to config filepath
     let directory = match parent_dir.join(&config.directory).canonicalize() {
         Ok(j) => j,
