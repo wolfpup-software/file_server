@@ -24,7 +24,7 @@ Change the `port` property to serve from a different port.
 Change the `directory` property to target an alternative directory. The `directory` property can be an absolute or relative path. A relative path is relative to the location of the JSON configuration file.
 
 A valid configuration example can be found at
-`file_server/v0.1/file_server.example.json`
+`./file_server.example.json`
 
 ## Install file_server
 
@@ -32,7 +32,7 @@ Execute the following to install `file_server`.
 
 ```
 git clone https://github.com/herebythere/file_server
-cargo install --path file_server/v0.1/file_server
+cargo install --path file_server/file_server
 ```
 
 ## Run file_server
