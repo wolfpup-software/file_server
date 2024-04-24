@@ -48,7 +48,7 @@ file_server <path_to_configuration_file>
 Execute the following to host the `./demo` directory using `file_server`.
 
 ```
-file_server file_server/v0.1/file_server.example.json
+file_server file_server/file_server.example.json
 ```
 
 Open a browser and visit `http://localhost:3000`.
