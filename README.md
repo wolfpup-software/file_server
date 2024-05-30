@@ -3,55 +3,34 @@
 `http` file server written in rust using [tokio](https://tokio.rs/) and
 [hyper](https://hyper.rs/).
 
-## Create a config
+## Install
 
-A JSON configuration file is required to run `file_server`.
-
-Configuration schema:
-
-```
-{
-  "host": <string>,
-  "port": <number>,
-  "directory": <string>
-}
-```
-
-Change the `host` property to serve from a specific host.
-
-Change the `port` property to serve from a different port.
-
-Change the `directory` property to target an alternative directory. The `directory` property can be an absolute or relative path. A relative path is relative to the location of the JSON configuration file.
-
-A valid configuration example can be found at
-`./file_server.example.json`
-
-## Install file_server
-
-Execute the following to install `file_server`.
+Run the following commands:
 
 ```
 git clone https://github.com/herebythere/file_server
-cargo install --path file_server/file_server
+cargo install --path file_server
 ```
 
-## Run file_server
+## Run
 
-The `file_server` application accepts one argument from the command line:
+Run the following command:
 
-- A valid `file_server` JSON configuration file
-
-```
-file_server <path_to_configuration_file>
-```
-
-Execute the following to host the `./demo` directory using `file_server`.
-
-```
-file_server file_server/file_server.example.json
+```sh
+file_server
 ```
 
 Open a browser and visit `http://localhost:3000`.
+
+### Change Authority and Port
+
+`File_server` accepts an `authority` as an optional argument from the command line:
+
+```sh
+file_server 0.0.0.0:7890
+```
+
+Open a browser and visit `http://0.0.0.0:7890`.
 
 ## Licence
 
