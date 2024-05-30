@@ -22,7 +22,7 @@ file_server
 
 Open a browser and visit `http://localhost:3000`.
 
-### Change Authority and Port
+### Change the host and port
 
 `File_server` accepts an `authority` as an optional argument from the command line:
 
