@@ -1,46 +1,41 @@
 use std::env;
-use std::path;
 
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
-
-use config;
 
 mod responses;
 mod service;
 
 #[tokio::main]
 async fn main() {
-    let args = match env::args().nth(1) {
-        Some(a) => path::PathBuf::from(a),
+    let address = match env::args().nth(1) {
+        Some(addr) => addr,
         None => return println!("argument error:\nconfig file not found."),
     };
-    let config = match config::from_filepath(&args).await {
-        Ok(c) => c,
-        Err(e) => return println!("configuration error:\n{}", e),
-    };
 
-    let address = config.host.clone() + ":" + &config.port.to_string();
     let listener = match TcpListener::bind(address).await {
-        Ok(l) => l,
+        Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
 
-    // try not to panic during server loop
+    let cwd = match env::current_dir() {
+        Ok(addr) => addr,
+        Err(e) => return println!("directory error:\n{}", e),
+    };
+
     loop {
         let (stream, _remote_address) = match listener.accept().await {
-            Ok(s) => s,
+            Ok(strm) => strm,
             _ => {
                 // log socket errors here
-                // perhaps a graceful shutdown
                 continue;
             }
         };
 
         let io = TokioIo::new(stream);
         let service = service::Svc {
-            directory: config.directory.clone(),
+            directory: cwd.clone(),
         };
 
         tokio::task::spawn(async move {
