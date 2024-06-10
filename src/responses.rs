@@ -1,7 +1,7 @@
 use futures_util::TryStreamExt;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming as IncomingBody};
-use hyper::header::{HeaderValue, CONTENT_TYPE};
+use hyper::header::{HeaderValue, CONTENT_TYPE, CONTENT_ENCODING};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
 use std::{io, path};
@@ -88,6 +88,8 @@ const WEBM: &str = "video/webm";
 // COMPRESSION
 const GZIP_EXT: &str = "gz";
 const GZIP: &str = "application/gzip";
+const ZSTD_EXT: &str = "zstd";
+const BR_EXT: &str = "br";
 const ZIP_EXT: &str = "zip";
 const ZIP: &str = "application/zip";
 
@@ -140,10 +142,21 @@ pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper:
     match File::open(&path).await {
         Ok(file) => {
             // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+
+            let content_encoding = get_content_encoding(&path);
             let content_type = get_content_type(&path);
+
             let reader_stream = ReaderStream::new(file);
             let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
             let boxed_body = stream_body.boxed();
+
+            if let Some(encoding) = content_encoding {
+                return Response::builder()
+                    .status(StatusCode::OK)
+                    .header(CONTENT_TYPE, content_type)
+                    .header(CONTENT_ENCODING, encoding)
+                    .body(boxed_body);
+            }
 
             Response::builder()
                 .status(StatusCode::OK)
@@ -151,6 +164,25 @@ pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper:
                 .body(boxed_body)
         }
         _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
+    }
+}
+
+fn get_content_encoding(path: &path::PathBuf) -> Option<&str> {
+    let extension = match path.extension() {
+        Some(ext) => ext,
+        _ => return None,
+    };
+
+    let ext_str = match extension.to_str() {
+        Some(e) => e,
+        _ => return None,
+    };
+
+    match ext_str {
+        GZIP_EXT => Some("gzip"),
+        BR_EXT => Some("br"),
+        ZSTD_EXT => Some("zstd"),
+        _ => None,
     }
 }
 
@@ -163,6 +195,32 @@ fn get_content_type(path: &path::PathBuf) -> &str {
     };
 
     let ext_str = match extension.to_str() {
+        Some(e) => e,
+        _ => return TEXT,
+    };
+
+    let alt_path = match ext_str {
+        GZIP_EXT => match path.file_stem() {
+            Some(p) => path::PathBuf::from(p),
+            _ => path::PathBuf::from(path),
+        },
+        ZSTD_EXT => match path.file_stem() {
+            Some(p) => path::PathBuf::from(p),
+            _ => path::PathBuf::from(path),
+        },
+        BR_EXT => match path.file_stem() {
+            Some(p) => path::PathBuf::from(p),
+            _ => path::PathBuf::from(path),
+        },
+        _ => path::PathBuf::from(path),
+    };
+
+    let alt_extension = match path.extension() {
+        Some(ext) => ext,
+        _ => extension,
+    };
+
+    let ext_str = match alt_extension.to_str() {
         Some(e) => e,
         _ => return TEXT,
     };
