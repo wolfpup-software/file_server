@@ -18,11 +18,8 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        if let Ok(path) = responses::get_pathbuff_from_request(&self.directory, &req) {
-            // confirm canon'd path resides in directory
-            if path.starts_with(&self.directory) {
-                return Box::pin(async { responses::build_response(path).await });
-            }
+        if let Some(path) = responses::get_pathbuff_from_request(&self.directory, &req) {
+            return Box::pin(async { responses::build_response(path).await });
         }
 
         Box::pin(async {
