@@ -14,23 +14,13 @@ cargo install --path file_server
 
 ## Run
 
-Run the following command:
+Run the following command to serve files at the `cwd` at `localhost:3000`:
 
 ```sh
-file_server
+file_server localhost:3000
 ```
 
 Open a browser and visit `http://localhost:3000`.
-
-### Change the host and port
-
-`File_server` accepts an `authority` as an optional argument from the command line:
-
-```sh
-file_server 0.0.0.0:7890
-```
-
-Open a browser and visit `http://0.0.0.0:7890`.
 
 ## Licence
 
