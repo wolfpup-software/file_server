@@ -79,9 +79,7 @@ const WEBM: &str = "video/webm";
 const GZIP_EXT: &str = "gz";
 const GZIP: &str = "application/gzip";
 const ZSTD_EXT: &str = "zstd";
-const ZSTD: &str = "";
 const BR_EXT: &str = "br";
-const BR: &str = "";
 const ZIP_EXT: &str = "zip";
 const ZIP: &str = "application/zip";
 
@@ -95,37 +93,6 @@ const OCTET_STREAM: &str = "application/octet-stream";
 // BINARY
 const WASM_EXT: &str = "wasm";
 const WASM: &str = "application/wasm";
-
-fn compressed_ext(ext_str: &str) -> bool {
-    match ext_str {
-        GZIP_EXT => true,
-        ZSTD_EXT => true,
-        BR_EXT => true,
-        _ => false,
-    }
-}
-
-fn get_alt_path(path: &path::PathBuf) -> path::PathBuf {
-    let alt_path = path::PathBuf::from(path);
-    let extension = match alt_path.extension() {
-        Some(ext) => ext,
-        _ => return alt_path,
-    };
-
-    let ext_str = match extension.to_str() {
-        Some(e) => e,
-        _ => return alt_path,
-    };
-
-    if !compressed_ext(ext_str) {
-        return alt_path;
-    }
-
-    match path.file_stem() {
-        Some(p) => path::PathBuf::from(p),
-        _ => alt_path,
-    }
-}
 
 // A file with no extention is still a textfile.
 // Directories would be transformed into a index.html path.
@@ -150,8 +117,6 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         FLAC_EXT => FLAC,
         GIF_EXT => GIF,
         GZIP_EXT => GZIP,
-        BR_EXT => BR,
-        ZSTD_EXT => ZSTD,
         HTML_EXT => HTML,
         ICO_EXT => ICO,
         JPEG_EXT => JPEG,
@@ -203,5 +168,36 @@ pub fn get_content_encoding(path: &path::PathBuf) -> Option<&str> {
         BR_EXT => Some(BR_EXT),
         ZSTD_EXT => Some(ZSTD_EXT),
         _ => None,
+    }
+}
+
+fn compressed_ext(ext_str: &str) -> bool {
+    match ext_str {
+        GZIP_EXT => true,
+        ZSTD_EXT => true,
+        BR_EXT => true,
+        _ => false,
+    }
+}
+
+fn get_alt_path(path: &path::PathBuf) -> path::PathBuf {
+    let alt_path = path::PathBuf::from(path);
+    let extension = match alt_path.extension() {
+        Some(ext) => ext,
+        _ => return alt_path,
+    };
+
+    let ext_str = match extension.to_str() {
+        Some(e) => e,
+        _ => return alt_path,
+    };
+
+    if !compressed_ext(ext_str) {
+        return alt_path;
+    }
+
+    match path.file_stem() {
+        Some(p) => path::PathBuf::from(p),
+        _ => alt_path,
     }
 }

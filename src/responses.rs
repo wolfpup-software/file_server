@@ -43,20 +43,6 @@ pub fn get_pathbuff_from_request(
     None
 }
 
-pub fn create_error_response(
-    code: &StatusCode,
-    body: &'static str,
-) -> Result<BoxedResponse, hyper::http::Error> {
-    Response::builder()
-        .status(code)
-        .header(CONTENT_TYPE, HeaderValue::from_static(HTML))
-        .body(
-            Full::new(bytes::Bytes::from(body))
-                .map_err(|e| match e {})
-                .boxed(),
-        )
-}
-
 pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper::http::Error> {
     match File::open(&path).await {
         Ok(file) => {
@@ -84,4 +70,18 @@ pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper:
         }
         _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
     }
+}
+
+pub fn create_error_response(
+    code: &StatusCode,
+    body: &'static str,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    Response::builder()
+        .status(code)
+        .header(CONTENT_TYPE, HeaderValue::from_static(HTML))
+        .body(
+            Full::new(bytes::Bytes::from(body))
+                .map_err(|e| match e {})
+                .boxed(),
+        )
 }

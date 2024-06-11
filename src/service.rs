@@ -18,12 +18,11 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        if let Some(path) = responses::get_pathbuff_from_request(&self.directory, &req) {
-            return Box::pin(async { responses::build_response(path).await });
+        match responses::get_pathbuff_from_request(&self.directory, &req) {
+            Some(path) => Box::pin(async { responses::build_response(path).await }),
+            _ => Box::pin(async {
+                responses::create_error_response(&StatusCode::NOT_FOUND, "404 not found")
+            }),
         }
-
-        Box::pin(async {
-            responses::create_error_response(&StatusCode::NOT_FOUND, "404 not found")
-        })
     }
 }
