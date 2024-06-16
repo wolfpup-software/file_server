@@ -1,7 +1,7 @@
 use futures_util::TryStreamExt;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming as IncomingBody};
-use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE};
+use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
 use std::{io, path};
@@ -21,26 +21,64 @@ pub fn get_pathbuff_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
 ) -> Option<path::PathBuf> {
-    // get path and strip forward slash
+    // get path and strip initial forward slash
     let uri_path = req.uri().path();
-    let mut strip_path = match uri_path.strip_prefix(FWD_SLASH) {
+    let mut path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => dir.join(p),
         _ => dir.join(uri_path),
     };
 
-    if strip_path.is_dir() {
-        strip_path = strip_path.join(INDEX);
+    // flatten path (ie ../../)
+    if let Some(file_name_str) = path.file_name() {
+        path = path::PathBuf::from(file_name_str);
     }
 
-    if let Some(file_name_str) = strip_path.file_name() {
-        let path = path::PathBuf::from(file_name_str);
-        // confirm canon'd path resides in directory
-        if path.starts_with(dir) {
+    // confirm path resides in directory
+    if !path.starts_with(dir) {
+        // and exists?
+        return None;
+    }
+
+    // look for index.html if directory
+    if path.is_dir() {
+        path = path.join(INDEX);
+    }
+
+    // if encoding or compression available
+    if let Some(encoding_value) = req.headers().get(ACCEPT_ENCODING) {
+        if let Ok(encoding_str) = encoding_value.to_str() {
+            for encoding in encoding_str.split(",") {
+                if let Some(ext) = get_ext(encoding.trim()) {
+                    let encoding_path = path.join(ext);
+
+                    if let Ok(exists) = encoding_path.try_exists() {
+                        if exists {
+                            return Some(encoding_path);
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // otherwise serve file
+    if let Ok(exists) = path.try_exists() {
+        if exists {
             return Some(path);
         }
     }
 
     None
+}
+
+fn get_ext(encoding: &str) -> Option<&str> {
+    match encoding {
+        "gzip" => Some(".gz"),
+        "zstd" => Some(".zst"),
+        "br" => Some(".br"),
+        "deflate" => Some(".zz"),
+        _ => None,
+    }
 }
 
 pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper::http::Error> {
