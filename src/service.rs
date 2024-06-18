@@ -19,7 +19,9 @@ impl Service<Request<IncomingBody>> for Svc {
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
         match responses::get_pathbuff_from_request(&self.directory, &req) {
-            Some(path) => Box::pin(async { responses::build_response(path).await }),
+            (Some(path), encoded_path, encoding) => {
+                Box::pin(async { responses::build_response(path, encoded_path, encoding).await })
+            }
             _ => Box::pin(async {
                 responses::create_error_response(&StatusCode::NOT_FOUND, "404 not found")
             }),
