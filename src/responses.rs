@@ -86,33 +86,29 @@ pub async fn build_response(
     encoding_path: Option<path::PathBuf>,
     encoding: Option<String>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
-    let (path, enc) = match (encoding_path, encoding) {
-        (Some(enc_path), Some(enc)) => (enc_path, Some(enc)),
-        _ => (req_path.clone(), None),
+    let path = match encoding_path {
+        Some(enc_path) => enc_path,
+        _ => req_path.clone(),
     };
 
     match File::open(&path).await {
         Ok(file) => {
-            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-
             let content_type = get_content_type(&req_path);
 
+            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
             let reader_stream = ReaderStream::new(file);
             let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
             let boxed_body = stream_body.boxed();
 
-            if let Some(enc_type) = enc {
-                return Response::builder()
-                    .status(StatusCode::OK)
-                    .header(CONTENT_TYPE, content_type)
-                    .header(CONTENT_ENCODING, enc_type)
-                    .body(boxed_body);
+            let mut builder = Response::builder()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, content_type);
+
+            if let Some(enc_type) = encoding {
+                builder.header(CONTENT_ENCODING, enc_type);
             }
 
-            Response::builder()
-                .status(StatusCode::OK)
-                .header(CONTENT_TYPE, content_type)
-                .body(boxed_body)
+            builder.body(boxed_body)
         }
         _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
     }
