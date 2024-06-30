@@ -58,13 +58,7 @@ pub fn get_pathbuff_from_request(
     }
 
     // otherwise serve file
-    if let Ok(exists) = path.try_exists() {
-        if exists {
-            return (Some(path), None, None);
-        }
-    }
-
-    (None, None, None)
+    (Some(path), None, None)
 }
 
 fn get_enc_path(
