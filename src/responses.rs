@@ -86,9 +86,9 @@ pub async fn build_response(
     encoding_path: Option<path::PathBuf>,
     encoding: Option<String>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
-    let path = match encoding_path {
-        Some(enc_path) => enc_path,
-        _ => req_path.clone(),
+    let (path, enc) = match (encoding_path, encoding) {
+        (Some(enc_path), Some(enc)) => (enc_path, Some(enc)),
+        _ => (req_path.clone(), None),
     };
 
     match File::open(&path).await {
@@ -104,8 +104,8 @@ pub async fn build_response(
                 .status(StatusCode::OK)
                 .header(CONTENT_TYPE, content_type);
 
-            if let Some(enc_type) = encoding {
-                builder.header(CONTENT_ENCODING, enc_type);
+            if let Some(enc_type) = enc {
+                builder = builder.header(CONTENT_ENCODING, enc_type);
             }
 
             builder.body(boxed_body)
