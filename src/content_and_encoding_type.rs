@@ -78,8 +78,6 @@ const WEBM: &str = "video/webm";
 // COMPRESSION
 const GZIP_EXT: &str = "gz";
 const GZIP: &str = "application/gzip";
-const ZSTD_EXT: &str = "zstd";
-const BR_EXT: &str = "br";
 const ZIP_EXT: &str = "zip";
 const ZIP: &str = "application/zip";
 
@@ -97,14 +95,12 @@ const WASM: &str = "application/wasm";
 // A file with no extention is still a textfile.
 // Directories would be transformed into a index.html path.
 pub fn get_content_type(path: &path::PathBuf) -> &str {
-    let alt_path = get_alt_path(path);
-
-    let alt_extension = match alt_path.extension() {
+    let extension = match path.extension() {
         Some(ext) => ext,
         _ => return TEXT,
     };
 
-    let ext_str = match alt_extension.to_str() {
+    let ext_str = match extension.to_str() {
         Some(e) => e,
         _ => return TEXT,
     };
@@ -149,55 +145,5 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         XML_EXT => XML,
         ZIP_EXT => ZIP,
         _ => OCTET_STREAM,
-    }
-}
-
-pub fn get_content_encoding(path: &path::PathBuf) -> Option<&str> {
-    let extension = match path.extension() {
-        Some(ext) => ext,
-        _ => return None,
-    };
-
-    let ext_str = match extension.to_str() {
-        Some(e) => e,
-        _ => return None,
-    };
-
-    match ext_str {
-        GZIP_EXT => Some(GZIP_EXT),
-        BR_EXT => Some(BR_EXT),
-        ZSTD_EXT => Some(ZSTD_EXT),
-        _ => None,
-    }
-}
-
-fn compressed_ext(ext_str: &str) -> bool {
-    match ext_str {
-        GZIP_EXT => true,
-        ZSTD_EXT => true,
-        BR_EXT => true,
-        _ => false,
-    }
-}
-
-fn get_alt_path(path: &path::PathBuf) -> path::PathBuf {
-    let alt_path = path::PathBuf::from(path);
-    let extension = match alt_path.extension() {
-        Some(ext) => ext,
-        _ => return alt_path,
-    };
-
-    let ext_str = match extension.to_str() {
-        Some(e) => e,
-        _ => return alt_path,
-    };
-
-    if !compressed_ext(ext_str) {
-        return alt_path;
-    }
-
-    match path.file_stem() {
-        Some(p) => path::PathBuf::from(p),
-        _ => alt_path,
     }
 }

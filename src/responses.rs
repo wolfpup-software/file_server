@@ -8,7 +8,7 @@ use std::{io, path};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-use crate::content_and_encoding_type::{get_content_encoding, get_content_type};
+use crate::content_and_encoding_type::get_content_type;
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
@@ -20,7 +20,7 @@ pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 pub fn get_pathbuff_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
-) -> Option<path::PathBuf> {
+) -> (Option<path::PathBuf>, Option<path::PathBuf>, Option<String>) {
     // get path and strip initial forward slash
     let uri_path = req.uri().path();
     let mut path = match uri_path.strip_prefix(FWD_SLASH) {
@@ -36,7 +36,7 @@ pub fn get_pathbuff_from_request(
     // confirm path resides in directory
     if !path.starts_with(dir) {
         // and exists?
-        return None;
+        return (None, None, None);
     }
 
     // look for index.html if directory
@@ -44,16 +44,37 @@ pub fn get_pathbuff_from_request(
         path = path.join(INDEX);
     }
 
-    // if encoding or compression available
-    if let Some(encoding_value) = req.headers().get(ACCEPT_ENCODING) {
+    // check if file exists
+    if let Ok(exists) = path.try_exists() {
+        if !exists {
+            return (None, None, None);
+        }
+    }
+
+    if let (Some(encoding_path), Some(trimmed)) =
+        get_enc_path(&path, req.headers().get(ACCEPT_ENCODING))
+    {
+        return (Some(path), Some(encoding_path), Some(trimmed));
+    }
+
+    // otherwise serve file
+    (Some(path), None, None)
+}
+
+fn get_enc_path(
+    path: &path::PathBuf,
+    encoding_header: Option<&HeaderValue>,
+) -> (Option<path::PathBuf>, Option<String>) {
+    if let Some(encoding_value) = encoding_header {
         if let Ok(encoding_str) = encoding_value.to_str() {
             for encoding in encoding_str.split(",") {
-                if let Some(ext) = get_ext(encoding.trim()) {
+                let trimmed = encoding.trim();
+                if let Some(ext) = get_ext(trimmed) {
                     let encoding_path = path.join(ext);
 
                     if let Ok(exists) = encoding_path.try_exists() {
                         if exists {
-                            return Some(encoding_path);
+                            return (Some(encoding_path), Some(trimmed.to_string()));
                         }
                     }
                 }
@@ -61,14 +82,7 @@ pub fn get_pathbuff_from_request(
         }
     };
 
-    // otherwise serve file
-    if let Ok(exists) = path.try_exists() {
-        if exists {
-            return Some(path);
-        }
-    }
-
-    None
+    (None, None)
 }
 
 fn get_ext(encoding: &str) -> Option<&str> {
@@ -81,30 +95,34 @@ fn get_ext(encoding: &str) -> Option<&str> {
     }
 }
 
-pub async fn build_response(path: path::PathBuf) -> Result<BoxedResponse, hyper::http::Error> {
+pub async fn build_response(
+    req_path: path::PathBuf,
+    encoding_path: Option<path::PathBuf>,
+    encoding: Option<String>,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    let (path, enc) = match (encoding_path, encoding) {
+        (Some(enc_path), Some(enc)) => (enc_path, Some(enc)),
+        _ => (req_path.clone(), None),
+    };
+
     match File::open(&path).await {
         Ok(file) => {
+            let content_type = get_content_type(&req_path);
+
             // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-
-            let content_encoding = get_content_encoding(&path);
-            let content_type = get_content_type(&path);
-
             let reader_stream = ReaderStream::new(file);
             let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
             let boxed_body = stream_body.boxed();
 
-            if let Some(encoding) = content_encoding {
-                return Response::builder()
-                    .status(StatusCode::OK)
-                    .header(CONTENT_TYPE, content_type)
-                    .header(CONTENT_ENCODING, encoding)
-                    .body(boxed_body);
+            let mut builder = Response::builder()
+                .status(StatusCode::OK)
+                .header(CONTENT_TYPE, content_type);
+
+            if let Some(enc_type) = enc {
+                builder = builder.header(CONTENT_ENCODING, enc_type);
             }
 
-            Response::builder()
-                .status(StatusCode::OK)
-                .header(CONTENT_TYPE, content_type)
-                .body(boxed_body)
+            builder.body(boxed_body)
         }
         _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
     }
