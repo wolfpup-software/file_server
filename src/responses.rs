@@ -44,22 +44,18 @@ pub fn get_pathbuff_from_request(
         path = path.join(INDEX);
     }
 
-    if let Some(encoding_value) = req.headers().get(ACCEPT_ENCODING) {
-        if let Ok(encoding_str) = encoding_value.to_str() {
-            for encoding in encoding_str.split(",") {
-                let trimmed = encoding.trim();
-                if let Some(ext) = get_ext(trimmed) {
-                    let encoding_path = path.join(ext);
-
-                    if let Ok(exists) = encoding_path.try_exists() {
-                        if exists {
-                            return (Some(path), Some(encoding_path), Some(trimmed.to_string()));
-                        }
-                    }
-                }
-            }
+    // check if file exists
+    if let Ok(exists) = path.try_exists() {
+        if !exists {
+            return (None, None, None);
         }
-    };
+    }
+
+    if let (Some(encoding_path), Some(trimmed)) =
+        get_enc_path(&path, req.headers().get(ACCEPT_ENCODING))
+    {
+        return (Some(path), Some(encoding_path), Some(trimmed));
+    }
 
     // otherwise serve file
     if let Ok(exists) = path.try_exists() {
@@ -69,6 +65,30 @@ pub fn get_pathbuff_from_request(
     }
 
     (None, None, None)
+}
+
+fn get_enc_path(
+    path: &path::PathBuf,
+    encoding_header: Option<&HeaderValue>,
+) -> (Option<path::PathBuf>, Option<String>) {
+    if let Some(encoding_value) = encoding_header {
+        if let Ok(encoding_str) = encoding_value.to_str() {
+            for encoding in encoding_str.split(",") {
+                let trimmed = encoding.trim();
+                if let Some(ext) = get_ext(trimmed) {
+                    let encoding_path = path.join(ext);
+
+                    if let Ok(exists) = encoding_path.try_exists() {
+                        if exists {
+                            return (Some(encoding_path), Some(trimmed.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    (None, None)
 }
 
 fn get_ext(encoding: &str) -> Option<&str> {
