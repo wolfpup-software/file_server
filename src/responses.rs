@@ -73,7 +73,7 @@ fn get_enc_path(
 
     let encoding_str = match header.to_str() {
         Ok(s) => s,
-        _ => return (None, None)
+        _ => return (None, None),
     };
 
     for encoding in encoding_str.split(",") {
@@ -111,7 +111,7 @@ pub async fn build_response(
         Some(p) => p,
         _ => return create_error_response(&StatusCode::NOT_FOUND, "404 not found"),
     };
-    
+
     let content_type = get_content_type(&rpath);
     let (path, enc) = match (encoding_path, encoding) {
         (Some(enc_path), Some(enc)) => (enc_path, Some(enc)),
