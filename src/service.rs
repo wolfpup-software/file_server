@@ -17,9 +17,9 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        let (path, encoded_path, encoding) =
+        let (path, encoded_path, encoding_type) =
             responses::get_pathbuff_from_request(&self.directory, &req);
 
-        Box::pin(async { responses::build_response(path, encoded_path, encoding).await })
+        Box::pin(async { responses::build_response(path, encoded_path, encoding_type).await })
     }
 }

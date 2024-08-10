@@ -8,7 +8,7 @@ use std::{io, path};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-use crate::content_and_encoding_type::get_content_type;
+use crate::content_and_encoding::{get_content_type, get_encoded_ext};
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
@@ -21,20 +21,19 @@ pub fn get_pathbuff_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
 ) -> (Option<path::PathBuf>, Option<path::PathBuf>, Option<String>) {
-    // get path and strip initial forward slash
+    // flatten path, convert to absolute (ie remove ../../)
     let source_dir = match path::absolute(dir) {
         Ok(sdf) => sdf,
         _ => return (None, None, None),
     };
 
-    // asbolute the source_dir
-    // flatten path (ie ../../)
     let uri_path = req.uri().path();
     let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => source_dir.join(p),
         _ => source_dir.join(uri_path),
     };
-    // look for index.html if directory
+
+    // if directory look for index.html
     if target_path.is_dir() {
         target_path = target_path.join(INDEX);
     }
@@ -48,21 +47,23 @@ pub fn get_pathbuff_from_request(
         return (None, None, None);
     }
 
-    // check if encoded file exists
+    // check if file exists
     if let Ok(exists) = target_path.try_exists() {
         if !exists {
             return (None, None, None);
         }
     }
 
-    let (encoding_path, trimmed) = get_enc_path(&target_path, req.headers().get(ACCEPT_ENCODING));
+    // check if encoded file exists
+    let (encoded_path, encoding_type) =
+        get_encoded_path(&target_path, req.headers().get(ACCEPT_ENCODING));
 
     // otherwise serve file
-    (Some(target_path), encoding_path, trimmed)
+    (Some(target_path), encoded_path, encoding_type)
 }
 
 // target path must be absolute for this to work
-fn get_enc_path(
+fn get_encoded_path(
     target_path: &path::PathBuf,
     encoding_header: Option<&HeaderValue>,
 ) -> (Option<path::PathBuf>, Option<String>) {
@@ -77,14 +78,15 @@ fn get_enc_path(
     };
 
     for encoding in encoding_str.split(",") {
-        let trimmed = encoding.trim();
-        if let Some(ext) = get_ext(trimmed) {
-            let encoding_path = target_path.join(ext);
+        let enc = encoding.trim();
+        let encoded_path = match get_encoded_ext(enc) {
+            Some(ext) => target_path.join(ext),
+            _ => continue,
+        };
 
-            if let Ok(exists) = encoding_path.try_exists() {
-                if exists {
-                    return (Some(encoding_path), Some(trimmed.to_string()));
-                }
+        if let Ok(exists) = encoded_path.try_exists() {
+            if exists {
+                return (Some(encoded_path), Some(enc.to_string()));
             }
         }
     }
@@ -92,19 +94,9 @@ fn get_enc_path(
     (None, None)
 }
 
-fn get_ext(encoding: &str) -> Option<&str> {
-    match encoding {
-        "gzip" => Some(".gz"),
-        "zstd" => Some(".zst"),
-        "br" => Some(".br"),
-        "deflate" => Some(".zz"),
-        _ => None,
-    }
-}
-
 pub async fn build_response(
     req_path: Option<path::PathBuf>,
-    encoding_path: Option<path::PathBuf>,
+    encoded_path: Option<path::PathBuf>,
     encoding: Option<String>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     let rpath = match req_path {
@@ -113,7 +105,7 @@ pub async fn build_response(
     };
 
     let content_type = get_content_type(&rpath);
-    let (path, enc) = match (encoding_path, encoding) {
+    let (path, enc) = match (encoded_path, encoding) {
         (Some(enc_path), Some(enc)) => (enc_path, Some(enc)),
         _ => (rpath.clone(), None),
     };
