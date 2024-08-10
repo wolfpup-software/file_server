@@ -1,13 +1,13 @@
 # file_server
 
-A simple static `http` file server written in rust using [tokio](https://tokio.rs/) and
+An `http` file server written in rust using [tokio](https://tokio.rs/) and
 [hyper](https://hyper.rs/).
 
 ## How to use
 
 ### Install
 
-Run the following commands:
+Bash the following commands:
 
 ```sh
 git clone https://github.com/herebythere/file_server
@@ -16,7 +16,7 @@ cargo install --path file_server
 
 ### Run 
 
-Run the following command to serve files at the `cwd` at `localhost:3000`:
+Bash the following command to serve files in the `cwd` at `localhost:3000`:
 
 ```sh
 file_server localhost:3000
