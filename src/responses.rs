@@ -17,6 +17,7 @@ const HTML: &str = "text/html; charset=utf-8";
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
+// return encoding NONE or encoding YES
 pub fn get_pathbuff_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
@@ -77,10 +78,17 @@ fn get_encoded_path(
         _ => return (None, None),
     };
 
+    let path_lossy = target_path.to_string_lossy();
+
     for encoding in encoding_str.split(",") {
         let enc = encoding.trim();
         let encoded_path = match get_encoded_ext(enc) {
-            Some(ext) => target_path.join(ext),
+            // add_extension is a nightly feature on std::path
+            // for now, get path as string, add ext, get path
+            Some(ext) => {
+                let updated_ext = path_lossy.to_string() + ext;
+                path::PathBuf::from(updated_ext)
+            }
             _ => continue,
         };
 
