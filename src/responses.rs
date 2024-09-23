@@ -78,16 +78,17 @@ fn get_encoded_path(
         _ => return (None, None),
     };
 
+    let path_lossy = target_path.to_string_lossy();
+
     for encoding in encoding_str.split(",") {
         let enc = encoding.trim();
         let encoded_path = match get_encoded_ext(enc) {
             // add_extension is a nightly feature on std::path
             // for now, get path as string, add ext, get path
             Some(ext) => {
-                let target_path_os_str = target_path.to_string_lossy();
-                let target_edited = target_path_os_str.to_string() + ext;
-                path::PathBuf::from(&target_edited)
-            },
+                let updated_ext = path_lossy.to_string() + ext;
+                path::PathBuf::from(updated_ext)
+            }
             _ => continue,
         };
 
