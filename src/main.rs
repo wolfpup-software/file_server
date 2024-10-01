@@ -12,7 +12,7 @@ mod service;
 async fn main() {
     let address = match env::args().nth(1) {
         Some(addr) => addr,
-        None => return println!("argument error:\nconfig file not found."),
+        None => return println!("argument error:\nurl authority not found (ie 127.0.0.1:3000)"),
     };
 
     let listener = match TcpListener::bind(address).await {
