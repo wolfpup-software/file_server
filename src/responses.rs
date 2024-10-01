@@ -17,15 +17,14 @@ const HTML: &str = "text/html; charset=utf-8";
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
-// return encoding NONE or encoding YES
-pub fn get_pathbuff_from_request(
+pub fn get_path_details_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
-) -> (Option<path::PathBuf>, Option<path::PathBuf>, Option<String>) {
-    // flatten path, convert to absolute (ie remove ../../)
+) -> (Option<(path::PathBuf, String)>, Option<String>) {
+    // flatten path, convert to absolute (ie resolve ../../)
     let source_dir = match path::absolute(dir) {
         Ok(sdf) => sdf,
-        _ => return (None, None, None),
+        _ => return (None, None),
     };
 
     let uri_path = req.uri().path();
@@ -40,42 +39,52 @@ pub fn get_pathbuff_from_request(
     }
     target_path = match path::absolute(target_path) {
         Ok(sdf) => sdf,
-        _ => return (None, None, None),
+        _ => return (None, None),
     };
 
     // confirm path resides in directory
     if !target_path.starts_with(source_dir) {
-        return (None, None, None);
+        return (None, None);
     }
 
     // check if file exists
-    if let Ok(exists) = target_path.try_exists() {
-        if !exists {
-            return (None, None, None);
+    match target_path.try_exists() {
+        Ok(exists) => {
+            if !exists {
+                return (None, None);
+            }
+        }
+        _ => {
+            return (None, None);
         }
     }
 
-    // check if encoded file exists
-    let (encoded_path, encoding_type) =
-        get_encoded_path(&target_path, req.headers().get(ACCEPT_ENCODING));
+    // get content type
+    let content_type = get_content_type(&target_path).to_string();
+
+    // serve encoded file if it exists
+    let accept_encoding = req.headers().get(ACCEPT_ENCODING);
+    if let Some((enc_path, enc_type)) = get_encoded_path(&target_path, accept_encoding) {
+        return (Some((enc_path, content_type)), Some(enc_type));
+    }
 
     // otherwise serve file
-    (Some(target_path), encoded_path, encoding_type)
+    (Some((target_path, content_type)), None)
 }
 
 // target path must be absolute for this to work
 fn get_encoded_path(
     target_path: &path::PathBuf,
     encoding_header: Option<&HeaderValue>,
-) -> (Option<path::PathBuf>, Option<String>) {
+) -> Option<(path::PathBuf, String)> {
     let header = match encoding_header {
         Some(enc) => enc,
-        _ => return (None, None),
+        _ => return None,
     };
 
     let encoding_str = match header.to_str() {
         Ok(s) => s,
-        _ => return (None, None),
+        _ => return None,
     };
 
     let path_lossy = target_path.to_string_lossy();
@@ -94,37 +103,30 @@ fn get_encoded_path(
 
         if let Ok(exists) = encoded_path.try_exists() {
             if exists {
-                return (Some(encoded_path), Some(enc.to_string()));
+                return Some((encoded_path, enc.to_string()));
             }
         }
     }
 
-    (None, None)
+    None
 }
 
 pub async fn build_response(
-    req_path: Option<path::PathBuf>,
-    encoded_path: Option<path::PathBuf>,
-    encoding: Option<String>,
+    target_path_and_content_type: Option<(path::PathBuf, String)>,
+    encoding_type: Option<String>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
-    let rpath = match req_path {
-        Some(p) => p,
+    let (target_path, content_type) = match target_path_and_content_type {
+        Some((target, content)) => (target, content),
         _ => return create_error_response(&StatusCode::NOT_FOUND, "404 not found"),
     };
 
-    let content_type = get_content_type(&rpath);
-    let (path, enc) = match (encoded_path, encoding) {
-        (Some(enc_path), Some(enc)) => (enc_path, Some(enc)),
-        _ => (rpath.clone(), None),
-    };
-
-    match File::open(&path).await {
+    match File::open(&target_path).await {
         Ok(file) => {
             let mut builder = Response::builder()
                 .status(StatusCode::OK)
                 .header(CONTENT_TYPE, content_type);
 
-            if let Some(enc_type) = enc {
+            if let Some(enc_type) = encoding_type {
                 builder = builder.header(CONTENT_ENCODING, enc_type);
             }
 
