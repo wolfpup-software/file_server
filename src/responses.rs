@@ -17,6 +17,14 @@ const HTML: &str = "text/html; charset=utf-8";
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
+// req_details_struct
+struct ReqDetails {
+    accept_encoding_header: String,
+    content_encoding: String,
+    content_type: String,
+    target_path: path::PathBuf,
+}
+
 pub fn get_path_details_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
@@ -44,31 +52,26 @@ pub fn get_path_details_from_request(
 
     // confirm path resides in directory
     if !target_path.starts_with(source_dir) {
+        // target path is 404
         return (None, None);
     }
 
-    // check if file exists
-    match target_path.try_exists() {
-        Ok(exists) => {
-            if !exists {
-                return (None, None);
-            }
-        }
-        _ => {
-            return (None, None);
-        }
-    }
-
-    // get content type
+    // get encoding details
     let content_type = get_content_type(&target_path).to_string();
-
-    // serve encoded file if it exists
     let accept_encoding = req.headers().get(ACCEPT_ENCODING);
+    // return enoded file if exists
     if let Some((enc_path, enc_type)) = get_encoded_path(&target_path, accept_encoding) {
         return (Some((enc_path, content_type)), Some(enc_type));
     }
 
-    // otherwise serve file
+    // check if file exists
+    if let Ok(exists) = target_path.try_exists() {
+        if !exists {
+            // target path is 404
+            return (None, None);
+        }
+    }    
+
     (Some((target_path, content_type)), None)
 }
 
