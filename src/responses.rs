@@ -10,7 +10,7 @@ use tokio_util::io::ReaderStream;
 
 use crate::content_and_encoding::{get_content_type, get_encoded_ext};
 
-const FWD_SLASH: &str = "/";
+// const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 const HTML: &str = "text/html; charset=utf-8";
@@ -36,6 +36,7 @@ pub fn get_path_details_from_request(
     };
 
     let uri_path = req.uri().path();
+    // no need to strip uri paths?
     let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => source_dir.join(p),
         _ => source_dir.join(uri_path),
@@ -46,7 +47,7 @@ pub fn get_path_details_from_request(
         target_path = target_path.join(INDEX);
     }
     target_path = match path::absolute(target_path) {
-        Ok(sdf) => sdf,
+        Ok(target) => target,
         _ => return (None, None),
     };
 
@@ -56,7 +57,12 @@ pub fn get_path_details_from_request(
         return (None, None);
     }
 
+    // add a couple of potential options
+    // [(path, enc), (path, enc)]
+    // then serve those one at a time
     // get encoding details
+    let paths: Vec<(path::PathBuf, String)> = Vec::new();
+
     let content_type = get_content_type(&target_path).to_string();
     let accept_encoding = req.headers().get(ACCEPT_ENCODING);
     // return enoded file if exists
@@ -104,6 +110,7 @@ fn get_encoded_path(
             _ => continue,
         };
 
+        // just add to paths[]
         if let Ok(exists) = encoded_path.try_exists() {
             if exists {
                 return Some((encoded_path, enc.to_string()));
@@ -123,6 +130,8 @@ pub async fn build_response(
         _ => return create_error_response(&StatusCode::NOT_FOUND, "404 not found"),
     };
 
+    // iterate through path options
+    // return first option
     match File::open(&target_path).await {
         Ok(file) => {
             let mut builder = Response::builder()
@@ -142,6 +151,9 @@ pub async fn build_response(
         }
         _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
     }
+
+    // Otherwise serve 404
+    // No error response? there shouldn't be an error. Either file exists or not.
 }
 
 pub fn create_error_response(
