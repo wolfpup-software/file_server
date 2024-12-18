@@ -10,10 +10,37 @@ use tokio_util::io::ReaderStream;
 
 use crate::content_and_encoding::{get_content_type, get_encoded_ext};
 
-// const FWD_SLASH: &str = "/";
+const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 const HTML: &str = "text/html; charset=utf-8";
+
+const GZIP: &str = "gzip";
+const COMPRESS: &str = "compress";
+const DEFLATE: &str = "deflate";
+const BR: &str = "br";
+const ZSTD: &str = "zstd";
+
+struct AvailableEncodings {
+    gzip: bool,
+    compress: bool,
+    deflate: bool,
+    br: bool,
+    zstd: bool,
+}
+
+impl AvailableEncodings {
+    pub fn encoding_is_available(&self, requested_encoding: &str) -> bool {
+        match requested_encoding {
+            "gzip" => self.gzip,
+            "compress" => self.compress,
+            "deflate" => self.deflate,
+            "br" => self.br,
+            "zstd" => self.zstd,
+            _ => false,
+        }
+    }
+}
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
@@ -22,13 +49,20 @@ struct ReqDetails {
     accept_encoding_header: String,
     content_encoding: String,
     content_type: String,
-    target_path: path::PathBuf,
+    url_path: path::PathBuf,
 }
 
+// create a list of paths
+// Vec<(pathBuf, content type, content enconding)>
+// so
+// [
+//   ("./home", "html", "gzip")
+// ]
 pub fn get_path_details_from_request(
     dir: &path::Path,
     req: &Request<IncomingBody>,
 ) -> (Option<(path::PathBuf, String)>, Option<String>) {
+    println!("{:?}", req);
     // flatten path, convert to absolute (ie resolve ../../)
     let source_dir = match path::absolute(dir) {
         Ok(sdf) => sdf,
@@ -57,11 +91,21 @@ pub fn get_path_details_from_request(
         return (None, None);
     }
 
+    // get path
+    // verify it starts with directory
+    // get accept header, split, save for response
+
+    // get media type by extension
+    // if no accept header then use found extention
+    // if accept header, split and trim, iterate over mimetypes, if matches found type return media with "content_type"
+
+    // if enconding header exist
+
     // add a couple of potential options
     // [(path, enc), (path, enc)]
     // then serve those one at a time
     // get encoding details
-    let paths: Vec<(path::PathBuf, String)> = Vec::new();
+    let paths: Vec<(path::PathBuf, Option<String>, Option<String>)> = Vec::new();
 
     let content_type = get_content_type(&target_path).to_string();
     let accept_encoding = req.headers().get(ACCEPT_ENCODING);
@@ -76,7 +120,7 @@ pub fn get_path_details_from_request(
             // target path is 404
             return (None, None);
         }
-    }    
+    }
 
     (Some((target_path, content_type)), None)
 }

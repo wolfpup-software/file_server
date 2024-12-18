@@ -3,12 +3,15 @@ use hyper::http::Request;
 use hyper::service::Service;
 use std::future::Future;
 use std::path;
+use std::path::PathBuf;
 use std::pin::Pin;
 
 use crate::responses;
 
 pub struct Svc {
     pub directory: path::PathBuf,
+    pub filepath_404s: Vec<(PathBuf, Option<String>, Option<String>)>,
+    pub filepath_500s: Vec<(PathBuf, Option<String>, Option<String>)>,
 }
 
 impl Service<Request<IncomingBody>> for Svc {

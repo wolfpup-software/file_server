@@ -3,6 +3,8 @@ use std::path;
 // A file with no extention is still a textfile.
 // Directories would be transformed into a index.html path.
 
+// mimetype="application/dash+xml",
+
 const TXT: &str = "text/plain; charset=utf-8";
 
 pub fn get_content_type(path: &path::PathBuf) -> &str {
@@ -31,10 +33,12 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         "js" => "text/javascript; charset=utf-8",
         "json" => "application/json; charset=utf-8",
         "webmanifest" => "application/manifest+json",
-        "M3U8" => "application/x-mpegURL",
+        "m3u8" => "application/x-mpegURL",
+        "m3u" => "application/x-mpegURL",
         "midi" => "audio/midi",
         "mp3" => "audio/mpeg",
         "mp4" => "video/mp4",
+        "mpd" => "application/dash+xml",
         "mpeg" => "video/mpeg",
         "oga" => "audio/ogg",
         "ogv" => "video/ogg",
