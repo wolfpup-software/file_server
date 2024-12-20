@@ -3,19 +3,17 @@ use std::path;
 // A file with no extention is still a textfile.
 // Directories would be transformed into a index.html path.
 
-// mimetype="application/dash+xml",
-
 const TXT: &str = "text/plain; charset=utf-8";
 
 pub fn get_content_type(path: &path::PathBuf) -> &str {
     let extension = match path.extension() {
         Some(ext) => ext,
-        _ => return TXT,
+        _ => return "application/octet-stream",
     };
 
     let ext_str = match extension.to_str() {
         Some(e) => e,
-        _ => return TXT,
+        _ => return "application/octet-stream",
     };
 
     match ext_str {
@@ -46,7 +44,7 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         "pdf" => "application/pdf",
         "png" => "image/png",
         "svg" => "image/svg+xml",
-        "txt" => TXT,
+        "txt" => "text/plain; charset=utf-8",
         "tiff" => "image/tiff",
         "ts" => "video/MP2T",
         "ttf" => "font/ttf",

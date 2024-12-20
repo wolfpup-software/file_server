@@ -4,10 +4,12 @@ use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
+use std::path::{Path, PathBuf};
 use std::{io, path};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
+use crate::config::Config;
 use crate::content_and_encoding::{get_content_type, get_encoded_ext};
 
 const FWD_SLASH: &str = "/";
@@ -21,91 +23,87 @@ const DEFLATE: &str = "deflate";
 const BR: &str = "br";
 const ZSTD: &str = "zstd";
 
-struct AvailableEncodings {
-    gzip: bool,
-    compress: bool,
-    deflate: bool,
-    br: bool,
-    zstd: bool,
-}
-
-impl AvailableEncodings {
-    pub fn encoding_is_available(&self, requested_encoding: &str) -> bool {
-        match requested_encoding {
-            "gzip" => self.gzip,
-            "compress" => self.compress,
-            "deflate" => self.deflate,
-            "br" => self.br,
-            "zstd" => self.zstd,
-            _ => false,
-        }
-    }
-}
-
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
+
+struct ReqPath {
+    path: PathBuf,
+    content_type: String,
+    encoding: String,
+}
 
 // req_details_struct
 struct ReqDetails {
     accept_encoding_header: String,
     content_encoding: String,
     content_type: String,
-    url_path: path::PathBuf,
+    url_path: PathBuf,
 }
 
-// create a list of paths
-// Vec<(pathBuf, content type, content enconding)>
-// so
-// [
-//   ("./home", "html", "gzip")
-// ]
-pub fn get_path_details_from_request(
-    dir: &path::Path,
-    req: &Request<IncomingBody>,
-) -> (Option<(path::PathBuf, String)>, Option<String>) {
-    println!("{:?}", req);
-    // flatten path, convert to absolute (ie resolve ../../)
-    let source_dir = match path::absolute(dir) {
-        Ok(sdf) => sdf,
-        _ => return (None, None),
-    };
+pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
+    match requested_encoding {
+        "gzip" => Some(".gz"),
+        "deflate" => Some(".zz"),
+        "br" => Some(".br"),
+        "zstd" => Some(".zstd"),
+        _ => None,
+    }
+}
 
+fn get_path_from_request(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
     let uri_path = req.uri().path();
     // no need to strip uri paths?
     let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
-        Some(p) => source_dir.join(p),
-        _ => source_dir.join(uri_path),
+        Some(p) => dir.join(p),
+        _ => dir.join(uri_path),
     };
 
     // if directory look for index.html
     if target_path.is_dir() {
         target_path = target_path.join(INDEX);
     }
-    target_path = match path::absolute(target_path) {
-        Ok(target) => target,
-        _ => return (None, None),
-    };
 
     // confirm path resides in directory
-    if !target_path.starts_with(source_dir) {
+    if target_path.starts_with(dir) {
+        // target path is 404
+        return Some(target_path);
+    }
+
+    None
+}
+
+pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> Option<()> {
+    let accept_header = req.headers().get(ACCEPT_ENCODING);
+    let accept_encoding_header = req.headers().get(ACCEPT_ENCODING);
+
+    None
+}
+
+pub fn get_path_details_from_request(
+    dir: &path::Path,
+    req: &Request<IncomingBody>,
+) -> (Option<(path::PathBuf, String)>, Option<String>) {
+    println!("{:?}", req);
+    // flatten path, convert to absolute (ie resolve ../../)
+
+    // let paths = Vec::new();
+
+    let uri_path = req.uri().path();
+    // no need to strip uri paths?
+    let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
+        Some(p) => dir.join(p),
+        _ => dir.join(uri_path),
+    };
+
+    // if directory look for index.html
+    if target_path.is_dir() {
+        target_path = target_path.join(INDEX);
+    }
+
+    // confirm path resides in directory
+    if !target_path.starts_with(dir) {
         // target path is 404
         return (None, None);
     }
-
-    // get path
-    // verify it starts with directory
-    // get accept header, split, save for response
-
-    // get media type by extension
-    // if no accept header then use found extention
-    // if accept header, split and trim, iterate over mimetypes, if matches found type return media with "content_type"
-
-    // if enconding header exist
-
-    // add a couple of potential options
-    // [(path, enc), (path, enc)]
-    // then serve those one at a time
-    // get encoding details
-    let paths: Vec<(path::PathBuf, Option<String>, Option<String>)> = Vec::new();
 
     let content_type = get_content_type(&target_path).to_string();
     let accept_encoding = req.headers().get(ACCEPT_ENCODING);

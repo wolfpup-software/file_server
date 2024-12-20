@@ -24,7 +24,7 @@ async fn main() {
 
     println!("{:?}", &config);
 
-    let listener = match TcpListener::bind(config.host_and_port).await {
+    let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
@@ -40,9 +40,7 @@ async fn main() {
 
         let io = TokioIo::new(stream);
         let service = service::Svc {
-            directory: config.directory.clone(),
-            filepath_404s: config.filepath_404s.clone(),
-            filepath_500s: config.filepath_500s.clone(),
+            config: config.clone(),
         };
 
         tokio::task::spawn(async move {

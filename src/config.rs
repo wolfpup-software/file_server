@@ -5,12 +5,6 @@ use tokio::fs;
 use std::path;
 use std::path::{Path, PathBuf};
 
-const GZIP: &str = "gzip";
-const COMPRESS: &str = "compress";
-// deflate was retired in 2003 for licensing reasons
-const BR: &str = "br";
-const ZSTD: &str = "zstd";
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub host_and_port: String,
@@ -89,24 +83,4 @@ fn get_paths(
     }
 
     Ok(updated_500s)
-}
-
-pub fn encoding_available(requested_encoding: &str) -> bool {
-    match requested_encoding {
-        "gzip" => true,
-        "deflate" => true,
-        "br" => true,
-        "zstd" => true,
-        _ => false,
-    }
-}
-
-pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
-    match requested_encoding {
-        "gzip" => Some(".gz"),
-        "deflate" => Some(".zz"),
-        "br" => Some(".br"),
-        "zstd" => Some(".zstd"),
-        _ => None,
-    }
 }
