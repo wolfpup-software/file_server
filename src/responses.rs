@@ -16,7 +16,6 @@ const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 const HTML: &str = "text/html; charset=utf-8";
-
 const GZIP: &str = "gzip";
 const COMPRESS: &str = "compress";
 const DEFLATE: &str = "deflate";
@@ -49,7 +48,7 @@ pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
     }
 }
 
-fn get_path_from_request(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
+fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
     let uri_path = req.uri().path();
     // no need to strip uri paths?
     let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
@@ -71,11 +70,18 @@ fn get_path_from_request(dir: &Path, req: &Request<IncomingBody>) -> Option<Path
     None
 }
 
-pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> Option<()> {
-    let accept_header = req.headers().get(ACCEPT_ENCODING);
+pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> Vec<ReqPath> {
+    let paths = Vec::new();
+
+    let req_path = match get_path_from_request_url(&config.directory, req) {
+        Some(p) => p,
+        _ => return paths,
+    };
+    let content_type = get_content_type(&req_path).to_string();
+
     let accept_encoding_header = req.headers().get(ACCEPT_ENCODING);
 
-    None
+    paths
 }
 
 pub fn get_path_details_from_request(
