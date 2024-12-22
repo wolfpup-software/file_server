@@ -2,8 +2,6 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::http::Request;
 use hyper::service::Service;
 use std::future::Future;
-use std::path;
-use std::path::PathBuf;
 use std::pin::Pin;
 
 use crate::responses;

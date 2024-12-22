@@ -4,7 +4,6 @@ use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::{io, path};
 use tokio::fs::File;
@@ -17,42 +16,20 @@ const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 const HTML: &str = "text/html; charset=utf-8";
-const GZIP: &str = "gzip";
-const COMPRESS: &str = "compress";
-const DEFLATE: &str = "deflate";
-const BR: &str = "br";
-const ZSTD: &str = "zstd";
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
 #[derive(Debug)]
 pub struct PathDetails {
-    path: PathBuf,
-    encoding: String,
+    pub path: PathBuf,
+    pub encoding: String,
 }
 
 #[derive(Debug)]
 pub struct ReqDetails {
-    path: PathBuf,
-    content_type: String,
-    path_details: Vec<PathDetails>,
-}
-
-struct EncodingCheck {
-    gzip: bool,
-    deflate: bool,
-    br: bool,
-    zstd: bool,
-}
-
-pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
-    match requested_encoding {
-        "gzip" => Some(".gz"),
-        "deflate" => Some(".zz"),
-        "br" => Some(".br"),
-        "zstd" => Some(".zstd"),
-        _ => None,
-    }
+    pub path: PathBuf,
+    pub content_type: String,
+    pub path_details: Vec<PathDetails>,
 }
 
 fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
@@ -109,13 +86,7 @@ pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> O
     let encodings = get_encodings(req);
     println!("{:?}", &encodings);
 
-    let ext = match req_path.extension() {
-        Some(ext) => ext.to_os_string(),
-        _ => OsString::from(""),
-    };
-
     for encoding in encodings {
-        let mut req_path_with_enc_ext = &req_path.clone();
         let enc_from_ext = match get_encoded_ext(&encoding) {
             Some(ext) => ext,
             _ => continue,

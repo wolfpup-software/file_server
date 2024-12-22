@@ -5,6 +5,23 @@ use tokio::fs;
 use std::path;
 use std::path::{Path, PathBuf};
 
+// struct EncodingCheck {
+//     gzip: bool,
+//     deflate: bool,
+//     br: bool,
+//     zstd: bool,
+// }
+
+// pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
+//     match requested_encoding {
+//         "gzip" => Some(".gz"),
+//         "deflate" => Some(".zz"),
+//         "br" => Some(".br"),
+//         "zstd" => Some(".zstd"),
+//         _ => None,
+//     }
+// }
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub host_and_port: String,
@@ -47,12 +64,12 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        let mut updated_404s = match get_paths(parent_dir, config.filepath_404s) {
+        let updated_404s = match get_paths(parent_dir, config.filepath_404s) {
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
 
-        let mut updated_500s = match get_paths(parent_dir, config.filepath_500s) {
+        let updated_500s = match get_paths(parent_dir, config.filepath_500s) {
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
