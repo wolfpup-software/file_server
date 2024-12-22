@@ -20,15 +20,8 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        // resolve potential paths
-        // get paths
-
-        // iterate through paths
-
-        // then iterate through 404s
-
-        // if error iterate through errors
-
+        let paths = responses::get_paths_from_request(&self.config, &req);
+        println!("{:?}", paths);
         let (content_type_and_target_path, encoding_type) =
             responses::get_path_details_from_request(&self.config.directory, &req);
 

@@ -4,6 +4,7 @@ use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::{io, path};
 use tokio::fs::File;
@@ -24,18 +25,24 @@ const ZSTD: &str = "zstd";
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
-struct ReqPath {
+#[derive(Debug)]
+pub struct PathDetails {
     path: PathBuf,
-    content_type: String,
     encoding: String,
 }
 
-// req_details_struct
-struct ReqDetails {
-    accept_encoding_header: String,
-    content_encoding: String,
+#[derive(Debug)]
+pub struct ReqDetails {
+    path: PathBuf,
     content_type: String,
-    url_path: PathBuf,
+    path_details: Vec<PathDetails>,
+}
+
+struct EncodingCheck {
+    gzip: bool,
+    deflate: bool,
+    br: bool,
+    zstd: bool,
 }
 
 pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
@@ -70,18 +77,66 @@ fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<
     None
 }
 
-pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> Vec<ReqPath> {
-    let paths = Vec::new();
+pub fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
+    let mut encodings = Vec::new();
+
+    let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
+        Some(enc) => enc,
+        _ => return encodings,
+    };
+
+    let encoding_str = match accept_encoding_header.to_str() {
+        Ok(s) => s,
+        _ => return encodings,
+    };
+
+    for encoding in encoding_str.split(",") {
+        encodings.push(encoding.trim().to_string());
+    }
+
+    encodings
+}
+
+pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> Option<ReqDetails> {
+    let mut paths = Vec::new();
 
     let req_path = match get_path_from_request_url(&config.directory, req) {
         Some(p) => p,
-        _ => return paths,
+        _ => return None,
     };
+
     let content_type = get_content_type(&req_path).to_string();
+    let encodings = get_encodings(req);
+    println!("{:?}", &encodings);
 
-    let accept_encoding_header = req.headers().get(ACCEPT_ENCODING);
+    let ext = match req_path.extension() {
+        Some(ext) => ext.to_os_string(),
+        _ => OsString::from(""),
+    };
 
-    paths
+    for encoding in encodings {
+        let mut req_path_with_enc_ext = &req_path.clone();
+        let enc_from_ext = match get_encoded_ext(&encoding) {
+            Some(ext) => ext,
+            _ => continue,
+        };
+
+        let mut path_os_str = req_path.clone().into_os_string();
+        path_os_str.push(enc_from_ext);
+
+        let enc_path = path::PathBuf::from(path_os_str);
+
+        paths.push(PathDetails {
+            path: enc_path.clone(),
+            encoding: encoding.clone(),
+        });
+    }
+
+    Some(ReqDetails {
+        path: req_path.clone(),
+        content_type: content_type,
+        path_details: paths,
+    })
 }
 
 pub fn get_path_details_from_request(
@@ -148,22 +203,6 @@ fn get_encoded_path(
 
     for encoding in encoding_str.split(",") {
         let enc = encoding.trim();
-        let encoded_path = match get_encoded_ext(enc) {
-            // add_extension is a nightly feature on std::path
-            // for now, get path as string, add ext, get path
-            Some(ext) => {
-                let updated_ext = path_lossy.to_string() + ext;
-                path::PathBuf::from(updated_ext)
-            }
-            _ => continue,
-        };
-
-        // just add to paths[]
-        if let Ok(exists) = encoded_path.try_exists() {
-            if exists {
-                return Some((encoded_path, enc.to_string()));
-            }
-        }
     }
 
     None

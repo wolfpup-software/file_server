@@ -1,11 +1,6 @@
-use std::path;
+use std::path::PathBuf;
 
-// A file with no extention is still a textfile.
-// Directories would be transformed into a index.html path.
-
-const TXT: &str = "text/plain; charset=utf-8";
-
-pub fn get_content_type(path: &path::PathBuf) -> &str {
+pub fn get_content_type(path: &PathBuf) -> &str {
     let extension = match path.extension() {
         Some(ext) => ext,
         _ => return "application/octet-stream",
