@@ -39,9 +39,7 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let service = service::Svc {
-            config: config.clone(),
-        };
+        let service = service::Svc::new(&config);
 
         tokio::task::spawn(async move {
             // log service errors here

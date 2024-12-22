@@ -10,12 +10,12 @@ use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
 use crate::config::Config;
-use crate::content_and_encoding::{get_content_type, get_encoded_ext};
+use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
-const HTML: &str = "text/html; charset=utf-8";
+// const HTML: &str = "text/html; charset=utf-8";
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
@@ -30,6 +30,8 @@ pub struct ReqDetails {
     pub path: PathBuf,
     pub content_type: String,
     pub path_details: Vec<PathDetails>,
+    pub filepath_404s: Vec<(PathBuf, Option<String>)>,
+    pub filepath_500s: Vec<(PathBuf, Option<String>)>,
 }
 
 fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
@@ -107,111 +109,123 @@ pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> O
         path: req_path.clone(),
         content_type: content_type,
         path_details: paths,
+        filepath_404s: config.filepath_404s.clone(),
+        filepath_500s: config.filepath_500s.clone(),
     })
 }
 
-pub fn get_path_details_from_request(
-    dir: &path::Path,
-    req: &Request<IncomingBody>,
-) -> (Option<(path::PathBuf, String)>, Option<String>) {
-    println!("{:?}", req);
-    // flatten path, convert to absolute (ie resolve ../../)
+pub async fn build_response_from_paths(
+    // config: &Config,
+    opt_req_details: Option<ReqDetails>,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    // if some, try serving paths files
 
-    // let paths = Vec::new();
-
-    let uri_path = req.uri().path();
-    // no need to strip uri paths?
-    let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
-        Some(p) => dir.join(p),
-        _ => dir.join(uri_path),
+    let req_details = match opt_req_details {
+        Some(rd) => rd,
+        _ => {
+            return create_error_response(
+                &StatusCode::INTERNAL_SERVER_ERROR,
+                &INTERNAL_SERVER_ERROR,
+            )
+        }
     };
 
-    // if directory look for index.html
-    if target_path.is_dir() {
-        target_path = target_path.join(INDEX);
-    }
-
-    // confirm path resides in directory
-    if !target_path.starts_with(dir) {
-        // target path is 404
-        return (None, None);
-    }
-
-    let content_type = get_content_type(&target_path).to_string();
-    let accept_encoding = req.headers().get(ACCEPT_ENCODING);
-    // return enoded file if exists
-    if let Some((enc_path, enc_type)) = get_encoded_path(&target_path, accept_encoding) {
-        return (Some((enc_path, content_type)), Some(enc_type));
-    }
-
-    // check if file exists
-    if let Ok(exists) = target_path.try_exists() {
-        if !exists {
-            // target path is 404
-            return (None, None);
+    // try encodings
+    for path_detail in req_details.path_details {
+        if let Some(res) = try_to_serve_file(path_detail, &req_details.content_type).await {
+            return res;
         }
     }
 
-    (Some((target_path, content_type)), None)
+    // try regular
+    if let Some(res) = try_to_serve_filepath(req_details.path, &req_details.content_type).await {
+        return res;
+    }
+
+    for (filepath, enc_type) in req_details.filepath_404s {
+        if let Some(res) = try_to_serve_opt_filepath(filepath, HTML, enc_type).await {
+            return res;
+        }
+    }
+
+    for (filepath, enc_type) in req_details.filepath_500s {
+        if let Some(res) = try_to_serve_opt_filepath(filepath, HTML, enc_type).await {
+            return res;
+        }
+    }
+
+    // try custom 404s
+
+    // try custom 500s
+
+    // finally default error
+    create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR)
 }
 
-// target path must be absolute for this to work
-fn get_encoded_path(
-    target_path: &path::PathBuf,
-    encoding_header: Option<&HeaderValue>,
-) -> Option<(path::PathBuf, String)> {
-    let header = match encoding_header {
-        Some(enc) => enc,
-        _ => return None,
-    };
+async fn try_to_serve_opt_filepath(
+    req_path: PathBuf,
+    content_type: &str,
+    enc_type: Option<String>,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    if let Ok(file) = File::open(req_path).await {
+        let mut builder = Response::builder()
+            .status(StatusCode::OK)
+            .header(CONTENT_TYPE, content_type);
 
-    let encoding_str = match header.to_str() {
-        Ok(s) => s,
-        _ => return None,
-    };
+        if let Some(enc) = enc_type {
+            builder = builder.header(CONTENT_ENCODING, enc);
+        }
 
-    let path_lossy = target_path.to_string_lossy();
+        // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+        let reader_stream = ReaderStream::new(file);
+        let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+        let boxed_body = stream_body.boxed();
 
-    for encoding in encoding_str.split(",") {
-        let enc = encoding.trim();
+        return Some(builder.body(boxed_body));
+    }
+
+    None
+}
+async fn try_to_serve_filepath(
+    req_path: PathBuf,
+    content_type: &str,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    if let Ok(file) = File::open(req_path).await {
+        let builder = Response::builder()
+            .status(StatusCode::OK)
+            .header(CONTENT_TYPE, content_type);
+
+        // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+        let reader_stream = ReaderStream::new(file);
+        let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+        let boxed_body = stream_body.boxed();
+
+        return Some(builder.body(boxed_body));
     }
 
     None
 }
 
-pub async fn build_response(
-    target_path_and_content_type: Option<(path::PathBuf, String)>,
-    encoding_type: Option<String>,
-) -> Result<BoxedResponse, hyper::http::Error> {
-    let (target_path, content_type) = match target_path_and_content_type {
-        Some((target, content)) => (target, content),
-        _ => return create_error_response(&StatusCode::NOT_FOUND, "404 not found"),
-    };
+async fn try_to_serve_file(
+    path_detail: PathDetails,
+    content_type: &str,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    if let Ok(file) = File::open(path_detail.path).await {
+        let mut builder = Response::builder()
+            .status(StatusCode::OK)
+            .header(CONTENT_TYPE, content_type);
 
-    // iterate through path options
-    // return first option
-    match File::open(&target_path).await {
-        Ok(file) => {
-            let mut builder = Response::builder()
-                .status(StatusCode::OK)
-                .header(CONTENT_TYPE, content_type);
+        builder = builder.header(CONTENT_ENCODING, path_detail.encoding);
 
-            if let Some(enc_type) = encoding_type {
-                builder = builder.header(CONTENT_ENCODING, enc_type);
-            }
+        // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+        let reader_stream = ReaderStream::new(file);
+        let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+        let boxed_body = stream_body.boxed();
 
-            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-            let reader_stream = ReaderStream::new(file);
-            let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-            let boxed_body = stream_body.boxed();
-
-            builder.body(boxed_body)
-        }
-        _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
+        return Some(builder.body(boxed_body));
     }
 
-    // Otherwise serve 404
-    // No error response? there shouldn't be an error. Either file exists or not.
+    None
 }
 
 pub fn create_error_response(

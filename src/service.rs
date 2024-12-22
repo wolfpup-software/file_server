@@ -9,7 +9,15 @@ use crate::responses;
 use crate::config::Config;
 
 pub struct Svc {
-    pub config: Config,
+    config: Config,
+}
+
+impl Svc {
+    pub fn new(config: &Config) -> Svc {
+        Svc {
+            config: config.clone(),
+        }
+    }
 }
 
 impl Service<Request<IncomingBody>> for Svc {
@@ -19,12 +27,7 @@ impl Service<Request<IncomingBody>> for Svc {
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
         let paths = responses::get_paths_from_request(&self.config, &req);
-        println!("{:?}", paths);
-        let (content_type_and_target_path, encoding_type) =
-            responses::get_path_details_from_request(&self.config.directory, &req);
 
-        Box::pin(async {
-            responses::build_response(content_type_and_target_path, encoding_type).await
-        })
+        Box::pin(async move { responses::build_response_from_paths(paths).await })
     }
 }

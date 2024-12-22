@@ -27,8 +27,8 @@ pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
     pub content_encodings: Vec<String>,
-    pub filepath_404s: Vec<(PathBuf, Option<String>, Option<String>)>,
-    pub filepath_500s: Vec<(PathBuf, Option<String>, Option<String>)>,
+    pub filepath_404s: Vec<(PathBuf, Option<String>)>,
+    pub filepath_500s: Vec<(PathBuf, Option<String>)>,
 }
 
 impl Config {
@@ -86,17 +86,17 @@ impl Config {
 
 fn get_paths(
     source_dir: &Path,
-    filepath_500s: Vec<(PathBuf, Option<String>, Option<String>)>,
-) -> Result<Vec<(PathBuf, Option<String>, Option<String>)>, String> {
+    filepath_500s: Vec<(PathBuf, Option<String>)>,
+) -> Result<Vec<(PathBuf, Option<String>)>, String> {
     let mut updated_500s = Vec::new();
     // get 404s
-    for (file_path, content_type, encoding_type) in filepath_500s {
+    for (file_path, encoding_type) in filepath_500s {
         let target_path = source_dir.join(file_path);
         let target_path_abs = match path::absolute(target_path) {
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
-        updated_500s.push((target_path_abs, content_type, encoding_type));
+        updated_500s.push((target_path_abs, encoding_type));
     }
 
     Ok(updated_500s)

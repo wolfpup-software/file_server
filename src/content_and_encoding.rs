@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+pub const HTML: &str = "text/html; charset=utf-8";
+
 pub fn get_content_type(path: &PathBuf) -> &str {
     let extension = match path.extension() {
         Some(ext) => ext,
@@ -19,7 +21,7 @@ pub fn get_content_type(path: &PathBuf) -> &str {
         "flac" => "audio/flac",
         "gif" => "image/gif",
         "gz" => "application/gzip",
-        "html" => "text/html; charset=utf-8",
+        "html" => HTML,
         "ico" => "image/vnd.microsoft.icon",
         "jpeg" => "image/jpeg",
         "jpg" => "image/jpeg",

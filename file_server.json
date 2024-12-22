@@ -3,11 +3,11 @@
 	"host_and_port": "127.0.0.1:4000",
 	"content_encodings": ["gzip", "compress", "deflate", "br", "zstd"],
 	"filepath_404s": [
-		["./demo/404.gz", "text/html", "gzip"] ,
-		["./demo/404.html", "text/html", null]
+		["./demo/404.gz", "gzip"] ,
+		["./demo/404.html", null]
 	],
 	"filepath_500s": [
-		["./demo/500.gz", "text/html", "gzip"] ,
-		["./demo/500.html", "text/html", null]
+		["./demo/500.gz", "gzip"] ,
+		["./demo/500.html", null]
 	]
 }
