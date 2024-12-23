@@ -60,18 +60,18 @@ impl Config {
 
 fn get_paths(
     source_dir: &Path,
-    filepath_500s: Vec<(PathBuf, Option<String>)>,
+    filepaths: Vec<(PathBuf, Option<String>)>,
 ) -> Result<Vec<(PathBuf, Option<String>)>, String> {
-    let mut updated_500s = Vec::new();
-    // get 404s
-    for (file_path, encoding_type) in filepath_500s {
+    let mut updated_filepaths = Vec::new();
+
+    for (file_path, encoding_type) in filepaths {
         let target_path = source_dir.join(file_path);
         let target_path_abs = match path::absolute(target_path) {
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
-        updated_500s.push((target_path_abs, encoding_type));
+        updated_filepaths.push((target_path_abs, encoding_type));
     }
 
-    Ok(updated_500s)
+    Ok(updated_filepaths)
 }
