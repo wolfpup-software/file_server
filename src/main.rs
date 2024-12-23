@@ -22,6 +22,10 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
+    // get encoding types as a struct
+
+    // copy alongside service
+
     println!("{:?}", &config);
 
     let listener = match TcpListener::bind(&config.host_and_port).await {
