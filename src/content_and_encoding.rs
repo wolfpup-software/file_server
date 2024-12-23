@@ -1,16 +1,17 @@
 use std::path::PathBuf;
 
 pub const HTML: &str = "text/html; charset=utf-8";
+pub const OCTET: &str = "application/octet-stream";
 
 pub fn get_content_type(path: &PathBuf) -> &str {
     let extension = match path.extension() {
         Some(ext) => ext,
-        _ => return "application/octet-stream",
+        _ => return OCTET,
     };
 
     let ext_str = match extension.to_str() {
         Some(e) => e,
-        _ => return "application/octet-stream",
+        _ => return OCTET,
     };
 
     match ext_str {
@@ -54,7 +55,7 @@ pub fn get_content_type(path: &PathBuf) -> &str {
         "woff" => "font/woff",
         "xml" => "application/xml; charset=utf-8",
         "zip" => "application/zip",
-        _ => "application/octet-stream",
+        _ => OCTET,
     }
 }
 

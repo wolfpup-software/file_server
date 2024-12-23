@@ -5,30 +5,12 @@ use tokio::fs;
 use std::path;
 use std::path::{Path, PathBuf};
 
-// struct EncodingCheck {
-//     gzip: bool,
-//     deflate: bool,
-//     br: bool,
-//     zstd: bool,
-// }
-
-// pub fn get_encoding_ext(requested_encoding: &str) -> Option<&str> {
-//     match requested_encoding {
-//         "gzip" => Some(".gz"),
-//         "deflate" => Some(".zz"),
-//         "br" => Some(".br"),
-//         "zstd" => Some(".zstd"),
-//         _ => None,
-//     }
-// }
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
     pub content_encodings: Vec<String>,
     pub filepath_404s: Vec<(PathBuf, Option<String>)>,
-    pub filepath_500s: Vec<(PathBuf, Option<String>)>,
 }
 
 impl Config {
@@ -69,16 +51,8 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        let updated_500s = match get_paths(parent_dir, config.filepath_500s) {
-            Ok(pb) => pb,
-            Err(e) => return Err(e.to_string()),
-        };
-
-        // apply abs target directory to config
-
         config.directory = target_directory_abs;
         config.filepath_404s = updated_404s;
-        config.filepath_500s = updated_500s;
 
         Ok(config)
     }

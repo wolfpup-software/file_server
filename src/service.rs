@@ -4,9 +4,8 @@ use hyper::service::Service;
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::responses;
-
 use crate::config::Config;
+use crate::responses;
 
 pub struct Svc {
     config: Config,
@@ -27,7 +26,8 @@ impl Service<Request<IncomingBody>> for Svc {
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
         let paths = responses::get_paths_from_request(&self.config, &req);
+        let filepath_404s = self.config.filepath_404s.clone();
 
-        Box::pin(async move { responses::build_response_from_paths(paths).await })
+        Box::pin(async move { responses::build_response_from_paths(filepath_404s, paths).await })
     }
 }
