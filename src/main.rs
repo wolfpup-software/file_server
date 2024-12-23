@@ -24,10 +24,6 @@ async fn main() {
 
     let av_enc = responses::AvailableEncodings::new(&config.content_encodings);
 
-    // get encoding types as a struct
-
-    // copy alongside service
-
     println!("{:?}", &config);
 
     let listener = match TcpListener::bind(&config.host_and_port).await {

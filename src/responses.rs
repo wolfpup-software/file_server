@@ -17,6 +17,11 @@ const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
 // const HTML: &str = "text/html; charset=utf-8";
 
+// Preflight Checklist
+//  Encodings
+//  404s
+//  Directory
+
 #[derive(Clone, Debug)]
 pub struct AvailableEncodings {
     gzip: bool,

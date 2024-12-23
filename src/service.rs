@@ -2,6 +2,7 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::http::Request;
 use hyper::service::Service;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 
 use crate::config::Config;
@@ -9,14 +10,18 @@ use crate::responses;
 
 pub struct Svc {
     config: Config,
+    directory: PathBuf,
     av_enc: responses::AvailableEncodings,
+    filepath_404s: Vec<(PathBuf, Option<String>)>,
 }
 
 impl Svc {
     pub fn new(config: &Config, av_enc: &responses::AvailableEncodings) -> Svc {
         Svc {
             config: config.clone(),
+            directory: config.directory.clone(),
             av_enc: av_enc.clone(),
+            filepath_404s: config.filepath_404s.clone(),
         }
     }
 }
