@@ -22,6 +22,8 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
+    let av_enc = responses::AvailableEncodings::new(&config.content_encodings);
+
     // get encoding types as a struct
 
     // copy alongside service
@@ -43,7 +45,7 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let service = service::Svc::new(&config);
+        let service = service::Svc::new(&config, &av_enc);
 
         tokio::task::spawn(async move {
             // log service errors here

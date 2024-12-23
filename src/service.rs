@@ -9,12 +9,14 @@ use crate::responses;
 
 pub struct Svc {
     config: Config,
+    av_enc: responses::AvailableEncodings,
 }
 
 impl Svc {
-    pub fn new(config: &Config) -> Svc {
+    pub fn new(config: &Config, av_enc: &responses::AvailableEncodings) -> Svc {
         Svc {
             config: config.clone(),
+            av_enc: av_enc.clone(),
         }
     }
 }
