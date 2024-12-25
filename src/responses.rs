@@ -9,7 +9,6 @@ use std::{io, path};
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-use crate::config::Config;
 use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
 
 const FWD_SLASH: &str = "/";
@@ -110,10 +109,10 @@ fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
     encodings
 }
 
-pub fn get_paths_from_request(config: &Config, req: &Request<IncomingBody>) -> Option<ReqDetails> {
+pub fn get_paths_from_request(directory: &PathBuf, req: &Request<IncomingBody>) -> Option<ReqDetails> {
     let mut paths = Vec::new();
 
-    let req_path = match get_path_from_request_url(&config.directory, req) {
+    let req_path = match get_path_from_request_url(&directory, req) {
         Some(p) => p,
         _ => return None,
     };
