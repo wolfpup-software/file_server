@@ -15,7 +15,7 @@ use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
-const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
+const NOT_FOUND_404: &str = "404 not found";
 
 #[derive(Clone, Debug)]
 pub struct AvailableEncodings {
@@ -63,12 +63,12 @@ pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 #[derive(Debug)]
 pub struct PathDetails {
     pub path: PathBuf,
-    pub encoding: String,
+    pub status_code: StatusCode,
+    pub encoding: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct ReqDetails {
-    pub path: PathBuf,
     pub content_type: String,
     pub path_details: Vec<PathDetails>,
 }
@@ -118,6 +118,7 @@ fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
 pub fn get_paths_from_request(
     directory: &PathBuf,
     available_encodings: &AvailableEncodings,
+    filepath_404s: &Vec<(PathBuf, Option<String>)>,
     req: &Request<IncomingBody>,
 ) -> Option<ReqDetails> {
     let mut paths = Vec::new();
@@ -131,8 +132,7 @@ pub fn get_paths_from_request(
     let encodings = get_encodings(req);
     println!("{:?}", &encodings);
 
-    // push 404s to file to serve
-
+    // try encoded paths first
     for encoding in encodings {
         let enc_from_ext = match get_encoded_ext(&encoding) {
             Some(ext) => ext,
@@ -151,74 +151,57 @@ pub fn get_paths_from_request(
 
         paths.push(PathDetails {
             path: enc_path.clone(),
+            encoding: Some(encoding.clone()),
+            status_code: StatusCode::OK,
+        });
+    }
+
+    // push unencoded filepath
+    paths.push(PathDetails {
+        path: req_path,
+        encoding: None,
+        status_code: StatusCode::OK,
+    });
+
+    // push 404s to file to serve
+    for (filepath, encoding) in filepath_404s {
+        paths.push(PathDetails {
+            path: filepath.clone(),
             encoding: encoding.clone(),
+            status_code: StatusCode::NOT_FOUND,
         });
     }
 
     Some(ReqDetails {
-        path: req_path.clone(),
         content_type: content_type,
         path_details: paths,
     })
 }
 
 pub async fn build_response_from_paths(
-    filepath_404s: Vec<(PathBuf, Option<String>)>,
     opt_req_details: Option<ReqDetails>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
-    let req_details = match opt_req_details {
-        Some(rd) => rd,
-        _ => return serve_404s(filepath_404s).await,
+    if let Some(req_details) = opt_req_details {
+        for path_detail in req_details.path_details {
+            if let Some(res) = try_to_serve_filepath(path_detail, &req_details.content_type).await {
+                return res;
+            }
+        }
     };
 
-    // try encodings
-    for path_detail in req_details.path_details {
-        if let Some(res) = try_to_serve_filepath(
-            path_detail.path,
-            &req_details.content_type,
-            Some(path_detail.encoding),
-        )
-        .await
-        {
-            return res;
-        }
-    }
-
-    // try non encoded
-    if let Some(res) =
-        try_to_serve_filepath(req_details.path, &req_details.content_type, None).await
-    {
-        return res;
-    }
-
-    serve_404s(filepath_404s).await
-}
-
-async fn serve_404s(
-    filepath_404s: Vec<(PathBuf, Option<String>)>,
-) -> Result<BoxedResponse, hyper::http::Error> {
-    // 404s just happens
-    for (filepath, enc_type) in filepath_404s {
-        if let Some(res) = try_to_serve_filepath(filepath, HTML, enc_type).await {
-            return res;
-        }
-    }
-
-    // finally default file not found
-    create_error_response(&StatusCode::NOT_FOUND, &INTERNAL_SERVER_ERROR)
+    create_not_found(&StatusCode::NOT_FOUND, &NOT_FOUND_404)
 }
 
 async fn try_to_serve_filepath(
-    req_path: PathBuf,
+    path_detail: PathDetails,
     content_type: &str,
-    enc_type: Option<String>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    if let Ok(file) = File::open(req_path).await {
+    if let Ok(file) = File::open(path_detail.path).await {
         let mut builder = Response::builder()
-            .status(StatusCode::OK)
+            .status(path_detail.status_code)
             .header(CONTENT_TYPE, content_type);
 
-        if let Some(enc) = enc_type {
+        if let Some(enc) = path_detail.encoding {
             builder = builder.header(CONTENT_ENCODING, enc);
         }
 
@@ -233,7 +216,7 @@ async fn try_to_serve_filepath(
     None
 }
 
-pub fn create_error_response(
+pub fn create_not_found(
     code: &StatusCode,
     body: &'static str,
 ) -> Result<BoxedResponse, hyper::http::Error> {

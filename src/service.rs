@@ -33,10 +33,13 @@ impl Service<Request<IncomingBody>> for Svc {
         // IF HEAD get details
 
         // ELSE any other request serves a file
-        let paths =
-            responses::get_paths_from_request(&self.directory, &self.available_encodings, &req);
-        let filepath_404s = self.filepath_404s.clone();
+        let paths = responses::get_paths_from_request(
+            &self.directory,
+            &self.available_encodings,
+            &self.filepath_404s,
+            &req,
+        );
 
-        Box::pin(async move { responses::build_response_from_paths(filepath_404s, paths).await })
+        Box::pin(async move { responses::build_response_from_paths(paths).await })
     }
 }
