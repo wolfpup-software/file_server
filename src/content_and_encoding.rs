@@ -1,19 +1,17 @@
-use std::path;
+use std::path::PathBuf;
 
-// A file with no extention is still a textfile.
-// Directories would be transformed into a index.html path.
+pub const HTML: &str = "text/html; charset=utf-8";
+pub const OCTET: &str = "application/octet-stream";
 
-const TXT: &str = "text/plain; charset=utf-8";
-
-pub fn get_content_type(path: &path::PathBuf) -> &str {
+pub fn get_content_type(path: &PathBuf) -> &str {
     let extension = match path.extension() {
         Some(ext) => ext,
-        _ => return TXT,
+        _ => return OCTET,
     };
 
     let ext_str = match extension.to_str() {
         Some(e) => e,
-        _ => return TXT,
+        _ => return OCTET,
     };
 
     match ext_str {
@@ -24,17 +22,19 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         "flac" => "audio/flac",
         "gif" => "image/gif",
         "gz" => "application/gzip",
-        "html" => "text/html; charset=utf-8",
+        "html" => HTML,
         "ico" => "image/vnd.microsoft.icon",
         "jpeg" => "image/jpeg",
         "jpg" => "image/jpeg",
         "js" => "text/javascript; charset=utf-8",
         "json" => "application/json; charset=utf-8",
         "webmanifest" => "application/manifest+json",
-        "M3U8" => "application/x-mpegURL",
+        "m3u8" => "application/x-mpegURL",
+        "m3u" => "application/x-mpegURL",
         "midi" => "audio/midi",
         "mp3" => "audio/mpeg",
         "mp4" => "video/mp4",
+        "mpd" => "application/dash+xml",
         "mpeg" => "video/mpeg",
         "oga" => "audio/ogg",
         "ogv" => "video/ogg",
@@ -42,7 +42,7 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         "pdf" => "application/pdf",
         "png" => "image/png",
         "svg" => "image/svg+xml",
-        "txt" => TXT,
+        "txt" => "text/plain; charset=utf-8",
         "tiff" => "image/tiff",
         "ts" => "video/MP2T",
         "ttf" => "font/ttf",
@@ -55,7 +55,7 @@ pub fn get_content_type(path: &path::PathBuf) -> &str {
         "woff" => "font/woff",
         "xml" => "application/xml; charset=utf-8",
         "zip" => "application/zip",
-        _ => "application/octet-stream",
+        _ => OCTET,
     }
 }
 

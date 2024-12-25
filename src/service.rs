@@ -2,13 +2,26 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::http::Request;
 use hyper::service::Service;
 use std::future::Future;
-use std::path;
+use std::path::PathBuf;
 use std::pin::Pin;
 
+use crate::config::Config;
 use crate::responses;
 
 pub struct Svc {
-    pub directory: path::PathBuf,
+    directory: PathBuf,
+    available_encodings: responses::AvailableEncodings,
+    filepath_404s: Vec<(PathBuf, Option<String>)>,
+}
+
+impl Svc {
+    pub fn new(config: &Config, available_encodings: &responses::AvailableEncodings) -> Svc {
+        Svc {
+            directory: config.directory.clone(),
+            available_encodings: available_encodings.clone(),
+            filepath_404s: config.filepath_404s.clone(),
+        }
+    }
 }
 
 impl Service<Request<IncomingBody>> for Svc {
@@ -17,11 +30,16 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        let (content_type_and_target_path, encoding_type) =
-            responses::get_path_details_from_request(&self.directory, &req);
+        // IF HEAD get details
 
-        Box::pin(async {
-            responses::build_response(content_type_and_target_path, encoding_type).await
-        })
+        // ELSE any other request serves a file
+        let paths = responses::get_paths_from_request(
+            &self.directory,
+            &self.available_encodings,
+            &self.filepath_404s,
+            &req,
+        );
+
+        Box::pin(async move { responses::build_response_from_paths(paths).await })
     }
 }

@@ -1,28 +1,32 @@
 use std::env;
+use std::path::PathBuf;
 
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
 
+mod config;
 mod content_and_encoding;
 mod responses;
 mod service;
 
 #[tokio::main]
 async fn main() {
-    let address = match env::args().nth(1) {
-        Some(addr) => addr,
-        None => return println!("argument error:\nurl authority not found (ie 127.0.0.1:3000)"),
+    let config_path = match env::args().nth(1) {
+        Some(dir) => PathBuf::from(dir),
+        None => return println!("conf error: \nargs filepath missing from args"),
     };
 
-    let listener = match TcpListener::bind(address).await {
+    let config = match config::Config::try_from(config_path).await {
+        Ok(conf) => conf,
+        Err(e) => return println!("conf error:\n{}", e),
+    };
+
+    let available_encodings = responses::AvailableEncodings::new(&config.content_encodings);
+
+    let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
-    };
-
-    let cwd = match env::current_dir() {
-        Ok(addr) => addr,
-        Err(e) => return println!("directory error:\n{}", e),
     };
 
     loop {
@@ -35,9 +39,7 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let service = service::Svc {
-            directory: cwd.clone(),
-        };
+        let service = service::Svc::new(&config, &available_encodings);
 
         tokio::task::spawn(async move {
             // log service errors here

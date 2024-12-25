@@ -14,35 +14,48 @@ git clone https://github.com/herebythere/file_server
 cargo install --path file_server
 ```
 
-### Run 
+### Configuration
+
+A valid JSON configuration file is required to run this fileserver.
+
+```JSON
+{
+	"directory": "./demo",
+	"host_and_port": "127.0.0.1:4000",
+	"content_encodings": ["gzip", "deflate", "br", "zstd"],
+	"filepath_404s": [
+		["./demo/404.gz", "gzip"],
+		["./demo/404.html", null]
+	]
+}
+```
+
+### Run
 
 Bash the following command to serve files in the `cwd` at `localhost:3000`:
 
 ```sh
-file_server localhost:3000
+file_server <path to config>
 ```
 
 Open a browser and visit `http://localhost:3000`.
 
-### Implementation Details
+### Accept-Encoding
 
-#### Content-Encoding
-
-A common expectation of file servers is to serve encoded files when requested.
-
-`File_server` expects encoded files to exist alongside their unencoded counterparts.
-
-If a request has a `content-encoding` header:
+If a request has an `accept-encoding` header:
 
 ```
-Content-Encoding: gzip;
+Accept-Encoding: gzip;
 ```
 
-`File-server` will serve the `gzip`-ed version of a requested file if available.
+`file_server` will return a corresponding `gzip`-ed version of a requested file if available.
 
-Otherwise it will serve the default file.
+```sh
+/www/index.html.gz	# accept-encoding: gzip;
+/www/index.html		# defacto file served
+```
 
-Encoded files will not be served if their unencoded counterpart does not exist.
+Otherwise it will serve the unencoded file.
 
 ## Licence
 

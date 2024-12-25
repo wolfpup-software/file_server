@@ -4,144 +4,217 @@ use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
-use std::{io, path};
+use std::path;
+use std::path::{Path, PathBuf};
+
 use tokio::fs::File;
+use tokio::io;
 use tokio_util::io::ReaderStream;
 
-use crate::content_and_encoding::{get_content_type, get_encoded_ext};
+use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
-const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
-const HTML: &str = "text/html; charset=utf-8";
+const NOT_FOUND_404: &str = "404 not found";
+
+#[derive(Clone, Debug)]
+pub struct AvailableEncodings {
+    gzip: bool,
+    deflate: bool,
+    br: bool,
+    zstd: bool,
+}
+
+impl AvailableEncodings {
+    pub fn new(potential_encodings: &Vec<String>) -> AvailableEncodings {
+        let mut av_enc = AvailableEncodings {
+            gzip: false,
+            deflate: false,
+            br: false,
+            zstd: false,
+        };
+
+        for encoding in potential_encodings {
+            match encoding.as_str() {
+                "gzip" => av_enc.gzip = true,
+                "deflate" => av_enc.deflate = true,
+                "br" => av_enc.br = true,
+                "zstd" => av_enc.zstd = true,
+                _ => {}
+            }
+        }
+
+        av_enc
+    }
+
+    pub fn encoding_is_available(&self, encoding: &str) -> bool {
+        match encoding {
+            "gzip" => self.gzip,
+            "deflate" => self.deflate,
+            "br" => self.br,
+            "zstd" => self.zstd,
+            _ => false,
+        }
+    }
+}
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
-pub fn get_path_details_from_request(
-    dir: &path::Path,
-    req: &Request<IncomingBody>,
-) -> (Option<(path::PathBuf, String)>, Option<String>) {
-    // flatten path, convert to absolute (ie resolve ../../)
-    let source_dir = match path::absolute(dir) {
-        Ok(sdf) => sdf,
-        _ => return (None, None),
-    };
-
-    let uri_path = req.uri().path();
-    let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
-        Some(p) => source_dir.join(p),
-        _ => source_dir.join(uri_path),
-    };
-
-    // if directory look for index.html
-    if target_path.is_dir() {
-        target_path = target_path.join(INDEX);
-    }
-    target_path = match path::absolute(target_path) {
-        Ok(sdf) => sdf,
-        _ => return (None, None),
-    };
-
-    // confirm path resides in directory
-    if !target_path.starts_with(source_dir) {
-        return (None, None);
-    }
-
-    // check if file exists
-    match target_path.try_exists() {
-        Ok(exists) => {
-            if !exists {
-                return (None, None);
-            }
-        }
-        _ => {
-            return (None, None);
-        }
-    }
-
-    // get content type
-    let content_type = get_content_type(&target_path).to_string();
-
-    // serve encoded file if it exists
-    let accept_encoding = req.headers().get(ACCEPT_ENCODING);
-    if let Some((enc_path, enc_type)) = get_encoded_path(&target_path, accept_encoding) {
-        return (Some((enc_path, content_type)), Some(enc_type));
-    }
-
-    // otherwise serve file
-    (Some((target_path, content_type)), None)
+#[derive(Debug)]
+pub struct PathDetails {
+    pub path: PathBuf,
+    pub status_code: StatusCode,
+    pub encoding: Option<String>,
 }
 
-// target path must be absolute for this to work
-fn get_encoded_path(
-    target_path: &path::PathBuf,
-    encoding_header: Option<&HeaderValue>,
-) -> Option<(path::PathBuf, String)> {
-    let header = match encoding_header {
-        Some(enc) => enc,
-        _ => return None,
+#[derive(Debug)]
+pub struct ReqDetails {
+    pub content_type: String,
+    pub path_details: Vec<PathDetails>,
+}
+
+fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
+    let uri_path = req.uri().path();
+    // no need to strip uri paths?
+    let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
+        Some(p) => dir.join(p),
+        _ => dir.join(uri_path),
     };
 
-    let encoding_str = match header.to_str() {
-        Ok(s) => s,
-        _ => return None,
-    };
+    // if directory add index.html
+    if target_path.is_dir() {
+        target_path.push(INDEX);
+    }
 
-    let path_lossy = target_path.to_string_lossy();
-
-    for encoding in encoding_str.split(",") {
-        let enc = encoding.trim();
-        let encoded_path = match get_encoded_ext(enc) {
-            // add_extension is a nightly feature on std::path
-            // for now, get path as string, add ext, get path
-            Some(ext) => {
-                let updated_ext = path_lossy.to_string() + ext;
-                path::PathBuf::from(updated_ext)
-            }
-            _ => continue,
-        };
-
-        if let Ok(exists) = encoded_path.try_exists() {
-            if exists {
-                return Some((encoded_path, enc.to_string()));
-            }
-        }
+    // confirm path resides in directory
+    if target_path.starts_with(dir) {
+        return Some(target_path);
     }
 
     None
 }
 
-pub async fn build_response(
-    target_path_and_content_type: Option<(path::PathBuf, String)>,
-    encoding_type: Option<String>,
-) -> Result<BoxedResponse, hyper::http::Error> {
-    let (target_path, content_type) = match target_path_and_content_type {
-        Some((target, content)) => (target, content),
-        _ => return create_error_response(&StatusCode::NOT_FOUND, "404 not found"),
+fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
+    let mut encodings = Vec::new();
+
+    let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
+        Some(enc) => enc,
+        _ => return encodings,
     };
 
-    match File::open(&target_path).await {
-        Ok(file) => {
-            let mut builder = Response::builder()
-                .status(StatusCode::OK)
-                .header(CONTENT_TYPE, content_type);
+    let encoding_str = match accept_encoding_header.to_str() {
+        Ok(s) => s,
+        _ => return encodings,
+    };
 
-            if let Some(enc_type) = encoding_type {
-                builder = builder.header(CONTENT_ENCODING, enc_type);
-            }
-
-            // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-            let reader_stream = ReaderStream::new(file);
-            let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-            let boxed_body = stream_body.boxed();
-
-            builder.body(boxed_body)
-        }
-        _ => create_error_response(&StatusCode::INTERNAL_SERVER_ERROR, &INTERNAL_SERVER_ERROR),
+    for encoding in encoding_str.split(",") {
+        encodings.push(encoding.trim().to_string());
     }
+
+    encodings
 }
 
-pub fn create_error_response(
+pub fn get_paths_from_request(
+    directory: &PathBuf,
+    available_encodings: &AvailableEncodings,
+    filepath_404s: &Vec<(PathBuf, Option<String>)>,
+    req: &Request<IncomingBody>,
+) -> Option<ReqDetails> {
+    let mut paths = Vec::new();
+
+    let req_path = match get_path_from_request_url(&directory, req) {
+        Some(p) => p,
+        _ => return None,
+    };
+
+    let content_type = get_content_type(&req_path).to_string();
+    let encodings = get_encodings(req);
+
+    // try encoded paths first
+    for encoding in encodings {
+        let enc_from_ext = match get_encoded_ext(&encoding) {
+            Some(ext) => ext,
+            _ => continue,
+        };
+
+        // if encoding not available skip
+        if !available_encodings.encoding_is_available(enc_from_ext) {
+            continue;
+        }
+
+        let mut path_os_str = req_path.clone().into_os_string();
+        path_os_str.push(enc_from_ext);
+
+        let enc_path = path::PathBuf::from(path_os_str);
+
+        paths.push(PathDetails {
+            path: enc_path.clone(),
+            encoding: Some(encoding.clone()),
+            status_code: StatusCode::OK,
+        });
+    }
+
+    // push unencoded filepath
+    paths.push(PathDetails {
+        path: req_path,
+        encoding: None,
+        status_code: StatusCode::OK,
+    });
+
+    // push 404s to file to serve
+    for (filepath, encoding) in filepath_404s {
+        paths.push(PathDetails {
+            path: filepath.clone(),
+            encoding: encoding.clone(),
+            status_code: StatusCode::NOT_FOUND,
+        });
+    }
+
+    Some(ReqDetails {
+        content_type: content_type,
+        path_details: paths,
+    })
+}
+
+pub async fn build_response_from_paths(
+    opt_req_details: Option<ReqDetails>,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    if let Some(req_details) = opt_req_details {
+        for path_detail in req_details.path_details {
+            if let Some(res) = try_to_serve_filepath(path_detail, &req_details.content_type).await {
+                return res;
+            }
+        }
+    };
+
+    create_not_found(&StatusCode::NOT_FOUND, &NOT_FOUND_404)
+}
+
+async fn try_to_serve_filepath(
+    path_detail: PathDetails,
+    content_type: &str,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    if let Ok(file) = File::open(path_detail.path).await {
+        let mut builder = Response::builder()
+            .status(path_detail.status_code)
+            .header(CONTENT_TYPE, content_type);
+
+        if let Some(enc) = path_detail.encoding {
+            builder = builder.header(CONTENT_ENCODING, enc);
+        }
+
+        // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
+        let reader_stream = ReaderStream::new(file);
+        let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+        let boxed_body = stream_body.boxed();
+
+        return Some(builder.body(boxed_body));
+    }
+
+    None
+}
+
+pub fn create_not_found(
     code: &StatusCode,
     body: &'static str,
 ) -> Result<BoxedResponse, hyper::http::Error> {
