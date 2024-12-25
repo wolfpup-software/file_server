@@ -10,15 +10,15 @@ use crate::responses;
 
 pub struct Svc {
     directory: PathBuf,
-    av_enc: responses::AvailableEncodings,
+    available_encodings: responses::AvailableEncodings,
     filepath_404s: Vec<(PathBuf, Option<String>)>,
 }
 
 impl Svc {
-    pub fn new(config: &Config, av_enc: &responses::AvailableEncodings) -> Svc {
+    pub fn new(config: &Config, available_encodings: &responses::AvailableEncodings) -> Svc {
         Svc {
             directory: config.directory.clone(),
-            av_enc: av_enc.clone(),
+            available_encodings: available_encodings.clone(),
             filepath_404s: config.filepath_404s.clone(),
         }
     }
@@ -30,7 +30,11 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        let paths = responses::get_paths_from_request(&self.directory, &req);
+        // IF HEAD get details
+
+        // ELSE any other request serves a file
+        let paths =
+            responses::get_paths_from_request(&self.directory, &self.available_encodings, &req);
         let filepath_404s = self.filepath_404s.clone();
 
         Box::pin(async move { responses::build_response_from_paths(filepath_404s, paths).await })

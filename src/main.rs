@@ -22,9 +22,7 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    let av_enc = responses::AvailableEncodings::new(&config.content_encodings);
-
-    println!("{:?}", &config);
+    let available_encodings = responses::AvailableEncodings::new(&config.content_encodings);
 
     let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
@@ -41,7 +39,7 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let service = service::Svc::new(&config, &av_enc);
+        let service = service::Svc::new(&config, &available_encodings);
 
         tokio::task::spawn(async move {
             // log service errors here

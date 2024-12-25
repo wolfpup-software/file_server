@@ -4,9 +4,11 @@ use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
+use std::path;
 use std::path::{Path, PathBuf};
-use std::{io, path};
+
 use tokio::fs::File;
+use tokio::io;
 use tokio_util::io::ReaderStream;
 
 use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
@@ -14,12 +16,6 @@ use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const INTERNAL_SERVER_ERROR: &str = "500 internal server error";
-// const HTML: &str = "text/html; charset=utf-8";
-
-// Preflight Checklist
-//  Encodings
-//  404s
-//  Directory
 
 #[derive(Clone, Debug)]
 pub struct AvailableEncodings {
@@ -49,6 +45,16 @@ impl AvailableEncodings {
         }
 
         av_enc
+    }
+
+    pub fn encoding_is_available(&self, encoding: &str) -> bool {
+        match encoding {
+            "gzip" => self.gzip,
+            "deflate" => self.deflate,
+            "br" => self.br,
+            "zstd" => self.zstd,
+            _ => false,
+        }
     }
 }
 
@@ -109,7 +115,11 @@ fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
     encodings
 }
 
-pub fn get_paths_from_request(directory: &PathBuf, req: &Request<IncomingBody>) -> Option<ReqDetails> {
+pub fn get_paths_from_request(
+    directory: &PathBuf,
+    available_encodings: &AvailableEncodings,
+    req: &Request<IncomingBody>,
+) -> Option<ReqDetails> {
     let mut paths = Vec::new();
 
     let req_path = match get_path_from_request_url(&directory, req) {
@@ -121,11 +131,18 @@ pub fn get_paths_from_request(directory: &PathBuf, req: &Request<IncomingBody>) 
     let encodings = get_encodings(req);
     println!("{:?}", &encodings);
 
+    // push 404s to file to serve
+
     for encoding in encodings {
         let enc_from_ext = match get_encoded_ext(&encoding) {
             Some(ext) => ext,
             _ => continue,
         };
+
+        // if encoding not available skip
+        if !available_encodings.encoding_is_available(enc_from_ext) {
+            continue;
+        }
 
         let mut path_os_str = req_path.clone().into_os_string();
         path_os_str.push(enc_from_ext);
