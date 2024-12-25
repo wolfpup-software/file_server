@@ -81,14 +81,13 @@ fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<
         _ => dir.join(uri_path),
     };
 
-    // if directory look for index.html
+    // if directory add index.html
     if target_path.is_dir() {
-        target_path = target_path.join(INDEX);
+        target_path.push(INDEX);
     }
 
     // confirm path resides in directory
     if target_path.starts_with(dir) {
-        // target path is 404
         return Some(target_path);
     }
 
@@ -130,7 +129,6 @@ pub fn get_paths_from_request(
 
     let content_type = get_content_type(&req_path).to_string();
     let encodings = get_encodings(req);
-    println!("{:?}", &encodings);
 
     // try encoded paths first
     for encoding in encodings {
