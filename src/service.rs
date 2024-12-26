@@ -1,13 +1,14 @@
-use hyper::body::Incoming as IncomingBody;
-use hyper::http::Request;
-use hyper::service::Service;
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 
+use hyper::body::Incoming as IncomingBody;
+use hyper::http::Request;
+use hyper::service::Service;
+
 use crate::config::Config;
-use crate::encodings::AvailableEncodings;
-use crate::responses;
+use crate::content_encoding::AvailableEncodings;
+use crate::responses::{build_response_from_filepaths, get_filepaths_from_request, BoxedResponse};
 
 pub struct Svc {
     directory: PathBuf,
@@ -26,7 +27,7 @@ impl Svc {
 }
 
 impl Service<Request<IncomingBody>> for Svc {
-    type Response = responses::BoxedResponse;
+    type Response = BoxedResponse;
     type Error = hyper::http::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -34,13 +35,13 @@ impl Service<Request<IncomingBody>> for Svc {
         // IF HEAD get details
 
         // ELSE any other request serves a file
-        let paths = responses::get_paths_from_request(
+        let paths = get_filepaths_from_request(
             &self.directory,
             &self.available_encodings,
             &self.filepath_404s,
             &req,
         );
 
-        Box::pin(async move { responses::build_response_from_paths(paths).await })
+        Box::pin(async move { build_response_from_filepaths(paths).await })
     }
 }

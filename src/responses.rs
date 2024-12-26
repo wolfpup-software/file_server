@@ -11,8 +11,8 @@ use tokio::fs::File;
 use tokio::io;
 use tokio_util::io::ReaderStream;
 
-use crate::content_and_encoding::{get_content_type, HTML};
-use crate::encodings::{get_encoded_ext, AvailableEncodings};
+use crate::content_encoding::{get_encoded_ext, AvailableEncodings};
+use crate::content_type::{get_content_type, HTML};
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
@@ -35,7 +35,6 @@ pub struct ReqDetails {
 
 fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
     let uri_path = req.uri().path();
-    // no need to strip uri paths?
     let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
         Some(p) => dir.join(p),
         _ => dir.join(uri_path),
@@ -74,7 +73,7 @@ fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
     encodings
 }
 
-pub fn get_paths_from_request(
+pub fn get_filepaths_from_request(
     directory: &PathBuf,
     available_encodings: &AvailableEncodings,
     filepath_404s: &Vec<(PathBuf, Option<String>)>,
@@ -136,21 +135,23 @@ pub fn get_paths_from_request(
     })
 }
 
-pub async fn build_response_from_paths(
+pub async fn build_response_from_filepaths(
     opt_req_details: Option<ReqDetails>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     if let Some(req_details) = opt_req_details {
         for path_detail in req_details.path_details {
-            if let Some(res) = try_to_serve_filepath(path_detail, &req_details.content_type).await {
+            if let Some(res) =
+                create_response_from_filepath(path_detail, &req_details.content_type).await
+            {
                 return res;
             }
         }
     };
 
-    create_not_found(&StatusCode::NOT_FOUND, &NOT_FOUND_404)
+    create_not_found_response(&StatusCode::NOT_FOUND, &NOT_FOUND_404)
 }
 
-async fn try_to_serve_filepath(
+async fn create_response_from_filepath(
     path_details: PathDetails,
     content_type: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
@@ -174,7 +175,7 @@ async fn try_to_serve_filepath(
     None
 }
 
-pub fn create_not_found(
+pub fn create_not_found_response(
     status_code: &StatusCode,
     body: &'static str,
 ) -> Result<BoxedResponse, hyper::http::Error> {

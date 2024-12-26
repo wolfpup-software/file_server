@@ -1,9 +1,9 @@
+use std::path;
+use std::path::{Path, PathBuf};
+
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio::fs;
-
-use std::path;
-use std::path::{Path, PathBuf};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {

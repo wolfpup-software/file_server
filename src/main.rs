@@ -6,12 +6,12 @@ use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
 
 mod config;
-mod content_and_encoding;
-mod encodings;
+mod content_encoding;
+mod content_type;
 mod responses;
 mod service;
 
-use crate::encodings::AvailableEncodings;
+use crate::content_encoding::AvailableEncodings;
 
 #[tokio::main]
 async fn main() {
