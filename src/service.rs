@@ -6,16 +6,17 @@ use std::path::PathBuf;
 use std::pin::Pin;
 
 use crate::config::Config;
+use crate::encodings::AvailableEncodings;
 use crate::responses;
 
 pub struct Svc {
     directory: PathBuf,
-    available_encodings: responses::AvailableEncodings,
+    available_encodings: AvailableEncodings,
     filepath_404s: Vec<(PathBuf, Option<String>)>,
 }
 
 impl Svc {
-    pub fn new(config: &Config, available_encodings: &responses::AvailableEncodings) -> Svc {
+    pub fn new(config: &Config, available_encodings: &AvailableEncodings) -> Svc {
         Svc {
             directory: config.directory.clone(),
             available_encodings: available_encodings.clone(),

@@ -14,9 +14,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub async fn try_from(source_path: PathBuf) -> Result<Config, String> {
+    pub async fn try_from(source_path: &PathBuf) -> Result<Config, String> {
         // see if config exists
-        let config_json = match fs::read_to_string(&source_path).await {
+        let config_json = match fs::read_to_string(source_path).await {
             Ok(r) => r,
             Err(e) => return Err(e.to_string()),
         };

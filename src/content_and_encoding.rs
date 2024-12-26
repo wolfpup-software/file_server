@@ -58,13 +58,3 @@ pub fn get_content_type(path: &PathBuf) -> &str {
         _ => OCTET,
     }
 }
-
-pub fn get_encoded_ext(encoding: &str) -> Option<&str> {
-    match encoding {
-        "gzip" => Some(".gz"),
-        "zstd" => Some(".zst"),
-        "br" => Some(".br"),
-        "deflate" => Some(".zz"),
-        _ => None,
-    }
-}

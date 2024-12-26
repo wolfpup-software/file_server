@@ -11,52 +11,12 @@ use tokio::fs::File;
 use tokio::io;
 use tokio_util::io::ReaderStream;
 
-use crate::content_and_encoding::{get_content_type, get_encoded_ext, HTML};
+use crate::content_and_encoding::{get_content_type, HTML};
+use crate::encodings::{get_encoded_ext, AvailableEncodings};
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 const NOT_FOUND_404: &str = "404 not found";
-
-#[derive(Clone, Debug)]
-pub struct AvailableEncodings {
-    gzip: bool,
-    deflate: bool,
-    br: bool,
-    zstd: bool,
-}
-
-impl AvailableEncodings {
-    pub fn new(potential_encodings: &Vec<String>) -> AvailableEncodings {
-        let mut av_enc = AvailableEncodings {
-            gzip: false,
-            deflate: false,
-            br: false,
-            zstd: false,
-        };
-
-        for encoding in potential_encodings {
-            match encoding.as_str() {
-                "gzip" => av_enc.gzip = true,
-                "deflate" => av_enc.deflate = true,
-                "br" => av_enc.br = true,
-                "zstd" => av_enc.zstd = true,
-                _ => {}
-            }
-        }
-
-        av_enc
-    }
-
-    pub fn encoding_is_available(&self, encoding: &str) -> bool {
-        match encoding {
-            "gzip" => self.gzip,
-            "deflate" => self.deflate,
-            "br" => self.br,
-            "zstd" => self.zstd,
-            _ => false,
-        }
-    }
-}
 
 pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
@@ -64,7 +24,7 @@ pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 pub struct PathDetails {
     pub path: PathBuf,
     pub status_code: StatusCode,
-    pub encoding: Option<String>,
+    pub content_encoding: Option<String>,
 }
 
 #[derive(Debug)]
@@ -149,7 +109,7 @@ pub fn get_paths_from_request(
 
         paths.push(PathDetails {
             path: enc_path.clone(),
-            encoding: Some(encoding.clone()),
+            content_encoding: Some(encoding.clone()),
             status_code: StatusCode::OK,
         });
     }
@@ -157,7 +117,7 @@ pub fn get_paths_from_request(
     // push unencoded filepath
     paths.push(PathDetails {
         path: req_path,
-        encoding: None,
+        content_encoding: None,
         status_code: StatusCode::OK,
     });
 
@@ -165,7 +125,7 @@ pub fn get_paths_from_request(
     for (filepath, encoding) in filepath_404s {
         paths.push(PathDetails {
             path: filepath.clone(),
-            encoding: encoding.clone(),
+            content_encoding: encoding.clone(),
             status_code: StatusCode::NOT_FOUND,
         });
     }
@@ -191,15 +151,15 @@ pub async fn build_response_from_paths(
 }
 
 async fn try_to_serve_filepath(
-    path_detail: PathDetails,
+    path_details: PathDetails,
     content_type: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    if let Ok(file) = File::open(path_detail.path).await {
+    if let Ok(file) = File::open(path_details.path).await {
         let mut builder = Response::builder()
-            .status(path_detail.status_code)
+            .status(path_details.status_code)
             .header(CONTENT_TYPE, content_type);
 
-        if let Some(enc) = path_detail.encoding {
+        if let Some(enc) = path_details.content_encoding {
             builder = builder.header(CONTENT_ENCODING, enc);
         }
 
@@ -215,11 +175,11 @@ async fn try_to_serve_filepath(
 }
 
 pub fn create_not_found(
-    code: &StatusCode,
+    status_code: &StatusCode,
     body: &'static str,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     Response::builder()
-        .status(code)
+        .status(status_code)
         .header(CONTENT_TYPE, HeaderValue::from_static(HTML))
         .body(
             Full::new(bytes::Bytes::from(body))
