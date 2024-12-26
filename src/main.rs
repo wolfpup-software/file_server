@@ -6,9 +6,12 @@ use hyper_util::server::conn::auto::Builder;
 use tokio::net::TcpListener;
 
 mod config;
-mod content_and_encoding;
+mod content_encoding;
+mod content_type;
 mod responses;
 mod service;
+
+use crate::content_encoding::AvailableEncodings;
 
 #[tokio::main]
 async fn main() {
@@ -17,12 +20,12 @@ async fn main() {
         None => return println!("conf error: \nargs filepath missing from args"),
     };
 
-    let config = match config::Config::try_from(config_path).await {
+    let config = match config::Config::try_from(&config_path).await {
         Ok(conf) => conf,
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    let available_encodings = responses::AvailableEncodings::new(&config.content_encodings);
+    let available_encodings = AvailableEncodings::new(&config.content_encodings);
 
     let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
