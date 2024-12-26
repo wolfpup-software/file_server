@@ -1,12 +1,12 @@
+use std::path;
+use std::path::{Path, PathBuf};
+
 use futures_util::TryStreamExt;
 use http_body_util::{combinators::BoxBody, BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming as IncomingBody};
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
-use std::path;
-use std::path::{Path, PathBuf};
-
 use tokio::fs::File;
 use tokio::io;
 use tokio_util::io::ReaderStream;
