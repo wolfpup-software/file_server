@@ -41,8 +41,6 @@ impl Service<Request<IncomingBody>> for Svc {
             &self.filepath_404s,
             &req,
         );
-        
-        println!("paths:\n{:?}", &paths);
 
         Box::pin(async move { build_response_from_filepaths(paths).await })
     }

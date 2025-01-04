@@ -40,8 +40,19 @@ fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<
         _ => dir.join(uri_path),
     };
 
+    // LOGIC:
     // if directory add index.html
-    if target_path.is_dir() {
+    //
+    // The path.is_dir() function checks if filepath exists on disk
+    // causing `file_server` to serve a 404 with the incorrect
+    // content_type: octet-media.
+    //
+    // Check if path is a file to give `file_server` a chance
+    // to return a file _without an extension_ as an octet-media.
+    //
+    // This also helps return a 404 with the content_type `text/html`
+    // if the directory does not exist
+    if !target_path.is_file() {
         target_path.push(INDEX);
     }
 
@@ -88,7 +99,6 @@ pub fn get_filepaths_from_request(
 
     let content_type = get_content_type(&req_path).to_string();
     let encodings = get_encodings(req);
-    println!("encodings: {:?} {:?}", available_encodings, encodings);
 
     // try encoded paths first
     for encoding in encodings {
