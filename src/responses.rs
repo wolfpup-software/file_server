@@ -88,18 +88,19 @@ pub fn get_filepaths_from_request(
 
     let content_type = get_content_type(&req_path).to_string();
     let encodings = get_encodings(req);
+    println!("encodings: {:?} {:?}", available_encodings, encodings);
 
     // try encoded paths first
     for encoding in encodings {
+        // if encoding not available skip
+        if !available_encodings.encoding_is_available(&encoding) {
+            continue;
+        }
+
         let enc_from_ext = match get_encoded_ext(&encoding) {
             Some(ext) => ext,
             _ => continue,
         };
-
-        // if encoding not available skip
-        if !available_encodings.encoding_is_available(enc_from_ext) {
-            continue;
-        }
 
         let mut path_os_str = req_path.clone().into_os_string();
         path_os_str.push(enc_from_ext);
@@ -108,7 +109,7 @@ pub fn get_filepaths_from_request(
 
         paths.push(PathDetails {
             path: enc_path.clone(),
-            content_encoding: Some(encoding.clone()),
+            content_encoding: Some(encoding),
             status_code: StatusCode::OK,
         });
     }
@@ -138,6 +139,8 @@ pub fn get_filepaths_from_request(
 pub async fn build_response_from_filepaths(
     opt_req_details: Option<ReqDetails>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
+    // this should include a 404 error response
+    // happens with "directories" when no file is included
     if let Some(req_details) = opt_req_details {
         for path_detail in req_details.path_details {
             if let Some(res) =
