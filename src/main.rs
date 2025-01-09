@@ -35,10 +35,7 @@ async fn main() {
     loop {
         let (stream, _remote_address) = match listener.accept().await {
             Ok(strm) => strm,
-            _ => {
-                // log socket errors here
-                continue;
-            }
+            _ => return println!("tcp accept error:\n{}", e),
         };
 
         let io = TokioIo::new(stream);
