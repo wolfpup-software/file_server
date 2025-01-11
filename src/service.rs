@@ -3,12 +3,19 @@ use std::path::PathBuf;
 use std::pin::Pin;
 
 use hyper::body::Incoming as IncomingBody;
-use hyper::http::Request;
 use hyper::service::Service;
+use hyper::Method;
+use hyper::Request;
+use hyper::StatusCode;
 
 use crate::config::Config;
 use crate::content_encoding::AvailableEncodings;
-use crate::responses::{build_response_from_filepaths, get_filepaths_from_request, BoxedResponse};
+use crate::response_paths::get_filepaths_from_request;
+use crate::responses::{
+    build_get_response, build_head_response, build_last_resort_response, NOT_FOUND_404,
+};
+
+use crate::type_flyweight::BoxedResponse;
 
 pub struct Svc {
     directory: PathBuf,
@@ -42,6 +49,14 @@ impl Service<Request<IncomingBody>> for Svc {
             &req,
         );
 
-        Box::pin(async move { build_response_from_filepaths(paths).await })
+        if req.method() == Method::HEAD {
+            return Box::pin(async move { build_head_response(paths).await });
+        }
+
+        if req.method() == Method::GET {
+            return Box::pin(async move { build_get_response(paths).await });
+        }
+
+        Box::pin(async move { build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404) })
     }
 }

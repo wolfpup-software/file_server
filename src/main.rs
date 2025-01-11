@@ -8,8 +8,12 @@ use tokio::net::TcpListener;
 mod config;
 mod content_encoding;
 mod content_type;
+mod get_response;
+mod head_response;
+mod response_paths;
 mod responses;
 mod service;
+mod type_flyweight;
 
 use crate::content_encoding::AvailableEncodings;
 
