@@ -13,6 +13,7 @@ mod head_response;
 mod response_paths;
 mod responses;
 mod service;
+mod type_flyweight;
 
 use crate::content_encoding::AvailableEncodings;
 

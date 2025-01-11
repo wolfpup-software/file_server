@@ -12,9 +12,10 @@ use crate::config::Config;
 use crate::content_encoding::AvailableEncodings;
 use crate::response_paths::get_filepaths_from_request;
 use crate::responses::{
-    build_get_response, build_head_response, build_last_resort_response, BoxedResponse,
-    NOT_FOUND_404,
+    build_get_response, build_head_response, build_last_resort_response, NOT_FOUND_404,
 };
+
+use crate::type_flyweight::BoxedResponse;
 
 pub struct Svc {
     directory: PathBuf,

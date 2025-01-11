@@ -1,17 +1,15 @@
-use http_body_util::{combinators::BoxBody, BodyExt, Full};
+use http_body_util::{BodyExt, Full};
 use hyper::header::{HeaderValue, CONTENT_TYPE};
 use hyper::http::Response;
 use hyper::StatusCode;
-use tokio::io;
 
 use crate::content_type::HTML;
 use crate::get_response::build_get_response_from_filepath;
 use crate::head_response::build_head_response_from_filepath;
 use crate::response_paths::ReqDetails;
+use crate::type_flyweight::BoxedResponse;
 
 pub const NOT_FOUND_404: &str = "404 not found";
-
-pub type BoxedResponse = Response<BoxBody<bytes::Bytes, io::Error>>;
 
 pub async fn build_head_response(
     opt_req_details: Option<ReqDetails>,
