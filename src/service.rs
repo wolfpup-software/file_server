@@ -12,7 +12,8 @@ use crate::config::Config;
 use crate::content_encoding::AvailableEncodings;
 use crate::response_paths::get_filepaths_from_request;
 use crate::responses::{
-    build_get_response, build_last_resort_response, BoxedResponse, NOT_FOUND_404,
+    build_get_response, build_head_response, build_last_resort_response, BoxedResponse,
+    NOT_FOUND_404,
 };
 
 pub struct Svc {
@@ -47,7 +48,9 @@ impl Service<Request<IncomingBody>> for Svc {
             &req,
         );
 
-        if req.method() == Method::HEAD {}
+        if req.method() == Method::HEAD {
+            return Box::pin(async move { build_head_response(paths).await });
+        }
 
         if req.method() == Method::GET {
             return Box::pin(async move { build_get_response(paths).await });
