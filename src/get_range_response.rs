@@ -143,6 +143,7 @@ pub async fn build_get_range_response_from_filepath(
         builder = builder.header(CONTENT_ENCODING, enc);
     }
 
+    // single range
     if 1 == ranges.len() {
         let (start, end) = match ranges.get(0) {
             Some(f) => f,
@@ -173,6 +174,11 @@ pub async fn build_get_range_response_from_filepath(
                     ),
             );
         };
+    }
+
+    // multi
+    if 1 < ranges.len() {
+
     }
 
     None
