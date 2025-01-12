@@ -2,42 +2,43 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, StreamBody};
 use hyper::body::Frame;
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use hyper::http::Response;
+use hyper::http::{Response, StatusCode};
 use std::path::PathBuf;
 use tokio::fs::File;
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncSeekExt;
-use tokio::io::BufReader;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
 use tokio_util::io::ReaderStream;
-
-// use std::{fs::File, io::{self, Read, Seek, SeekFrom}};
-
-// let start = 20;
-// let length = 100;
-
-// let mut input = File::open("input.bin")?;
-
-// // Seek to the start position
-// input.seek(SeekFrom::Start(start))?;
-
-// // Create a reader with a fixed length
-// let mut chunk = input.take(length);
-
-// let mut output = File::create("output.bin")?;
-
-// // Copy the chunk into the output file
-// io::copy(&mut chunk, &mut output)?;
-
-use tokio::io::{self, AsyncRead, AsyncSeek, SeekFrom};
 
 use crate::response_paths::PathDetails;
 use crate::type_flyweight::BoxedResponse;
+
+type FileChunk = tokio::io::Take<tokio::fs::File>;
+
+// support single range request
+// starts with bytes=
+// then split with ","
+// then split with "-"
+//
+// little logic to send single or multibyte response
+//
+// then parse int from split numbers
+//
+
+//
+
+// Range: <unit>=<range-start>-
+// Range: <unit>=<range-start>-<range-end>
+// Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
+// Range: <unit>=-<suffix-length>
 
 pub async fn build_get_range_response_from_filepath(
     path_details: PathDetails,
     content_type: &str,
     range_str: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    // get file
+
+    // get file size
+
     // get range in bytes
 
     // get file size
@@ -49,7 +50,7 @@ pub async fn build_get_range_response_from_filepath(
         };
 
         let mut builder = Response::builder()
-            .status(path_details.status_code)
+            .status(StatusCode::PARTIAL_CONTENT)
             .header(CONTENT_TYPE, content_type)
             .header(CONTENT_LENGTH, metadata.len());
 
@@ -68,7 +69,7 @@ pub async fn build_get_range_response_from_filepath(
     None
 }
 
-pub async fn read_file_range(filepath: &PathBuf) -> Option<tokio::io::Take<tokio::fs::File>> {
+pub async fn read_file_range(filepath: &PathBuf) -> Option<FileChunk> {
     let start = 0;
     let length = 100;
 
