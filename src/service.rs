@@ -1,18 +1,16 @@
-use std::future::Future;
-use std::path::PathBuf;
-use std::pin::Pin;
-
 use hyper::body::Incoming as IncomingBody;
 use hyper::service::Service;
 use hyper::Method;
 use hyper::Request;
 use hyper::StatusCode;
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::Pin;
 
 use crate::config::Config;
 use crate::content_encoding::AvailableEncodings;
 use crate::response_paths::get_filepaths_from_request;
 use crate::responses;
-
 use crate::type_flyweight::BoxedResponse;
 
 pub struct Svc {

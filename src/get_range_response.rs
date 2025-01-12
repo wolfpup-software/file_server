@@ -1,32 +1,13 @@
-use futures_util::TryStreamExt;
+use http_body_util::BodyExt;
 use http_body_util::Full;
-use http_body_util::{BodyExt, StreamBody};
-use hyper::body::Frame;
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
 use hyper::http::{Response, StatusCode};
-use std::path::PathBuf;
-use tokio::fs::File;
-
 use std::io::SeekFrom;
-use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt};
-use tokio_util::io::ReaderStream;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::response_paths::PathDetails;
 use crate::type_flyweight::BoxedResponse;
-
-type FileChunk = tokio::io::Take<tokio::fs::File>;
-
-// support single range request
-// starts with bytes=
-// then split with ","
-// then split with "-"
-//
-// little logic to send single or multibyte response
-//
-// then parse int from split numbers
-//
-
-//
 
 // Range: <unit>=<range-start>-
 // Range: <unit>=<range-start>-<range-end>
@@ -107,6 +88,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
             return None;
         }
 
+        // swap for "size", never read more than size
         if end_range_int > size {
             return None;
         }
@@ -167,7 +149,7 @@ pub async fn build_get_range_response_from_filepath(
             _ => return None,
         };
 
-        let cursor = match file_to_read
+        let _cursor = match file_to_read
             .seek(SeekFrom::Start(start.clone() as u64))
             .await
         {
