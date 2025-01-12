@@ -52,13 +52,6 @@ pub async fn build_get_range_response(
     opt_req_details: Option<ReqDetails>,
     range_string: String,
 ) -> Result<BoxedResponse, hyper::http::Error> {
-    // this should include a 404 error response
-    // happens with "directories" when no file is included
-
-    // get the header value here
-
-    println!("ranges: {}", range_string);
-
     if let Some(req_details) = opt_req_details {
         for path_detail in req_details.path_details {
             if let Some(res) = build_get_range_response_from_filepath(
