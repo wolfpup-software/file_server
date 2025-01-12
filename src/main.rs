@@ -8,6 +8,7 @@ use tokio::net::TcpListener;
 mod config;
 mod content_encoding;
 mod content_type;
+mod get_range_response;
 mod get_response;
 mod head_response;
 mod response_paths;
