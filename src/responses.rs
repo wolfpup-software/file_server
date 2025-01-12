@@ -57,6 +57,8 @@ pub async fn build_get_range_response(
 
     // get the header value here
 
+    println!("ranges: {}", range_string);
+
     if let Some(req_details) = opt_req_details {
         for path_detail in req_details.path_details {
             if let Some(res) = build_get_range_response_from_filepath(

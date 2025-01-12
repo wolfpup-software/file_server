@@ -1,7 +1,8 @@
 use futures_util::TryStreamExt;
+use http_body_util::Full;
 use http_body_util::{BodyExt, StreamBody};
 use hyper::body::Frame;
-use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
+use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
 use hyper::http::{Response, StatusCode};
 use std::path::PathBuf;
 use tokio::fs::File;
@@ -27,73 +28,166 @@ type FileChunk = tokio::io::Take<tokio::fs::File>;
 
 // Range: <unit>=<range-start>-
 // Range: <unit>=<range-start>-<range-end>
-// Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
 // Range: <unit>=-<suffix-length>
+
+// multi range requests require an entire different strategy
+// Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
+
+// what about a starts with ends with situation?
+
+// on any fail return nothing
+fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
+    let stripped_range = range_str.trim();
+    let range_values_str = match stripped_range.strip_prefix("bytes=") {
+        Some(r) => r,
+        _ => return None,
+    };
+
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+
+    let split_values = range_values_str.split(",");
+    for value_str in split_values {
+        let trimmed_value_str = value_str.trim();
+        // possible seek and read to end (N)
+        if let Some(without_suffix) = trimmed_value_str.strip_suffix("-") {
+            // parse int
+            // push
+            let start_range_int: usize = match without_suffix.parse() {
+                Ok(sri) => sri,
+                _ => return None,
+            };
+
+            ranges.push((start_range_int, size));
+            continue;
+        }
+
+        // possible seek to (N - M) - N
+        if let Some(without_prefix) = trimmed_value_str.strip_prefix("-") {
+            // possible suffix
+            let end_range_int: usize = match without_prefix.parse() {
+                Ok(sri) => sri,
+                _ => return None,
+            };
+
+            if end_range_int >= size {
+                return None;
+            }
+
+            ranges.push((size - end_range_int, size));
+            continue;
+        }
+
+        // start-end value range
+        let mut values = trimmed_value_str.split("-");
+
+        let start_range_str = match values.next() {
+            Some(start_range) => start_range,
+            _ => return None,
+        };
+
+        let end_range_str = match values.next() {
+            Some(end_range) => end_range,
+            _ => return None,
+        };
+
+        let start_range_int: usize = match start_range_str.parse() {
+            Ok(sri) => sri,
+            _ => return None,
+        };
+
+        let end_range_int: usize = match end_range_str.parse() {
+            Ok(sri) => sri,
+            _ => return None,
+        };
+
+        // check bounds
+        if start_range_int > end_range_int {
+            return None;
+        }
+
+        if end_range_int > size {
+            return None;
+        }
+
+        ranges.push((start_range_int, end_range_int))
+    }
+
+    return Some(ranges);
+}
+
+fn get_content_range_header_str(start: &usize, end: &usize, size: &usize) -> String {
+    "bytes ".to_string()
+        + start.to_string().as_str()
+        + "-"
+        + end.to_string().as_str()
+        + "/"
+        + size.to_string().as_str()
+}
 
 pub async fn build_get_range_response_from_filepath(
     path_details: PathDetails,
     content_type: &str,
     range_str: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    // get file
-
-    // get file size
-
-    // get range in bytes
-
-    // get file size
-
-    if let Ok(file) = File::open(path_details.path).await {
-        let metadata = match file.metadata().await {
-            Ok(m) => m,
-            _ => return None,
-        };
-
-        let mut builder = Response::builder()
-            .status(StatusCode::PARTIAL_CONTENT)
-            .header(CONTENT_TYPE, content_type)
-            .header(CONTENT_LENGTH, metadata.len());
-
-        if let Some(enc) = path_details.content_encoding {
-            builder = builder.header(CONTENT_ENCODING, enc);
-        }
-
-        // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-        let reader_stream = ReaderStream::new(file);
-        let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-        let boxed_body = stream_body.boxed();
-
-        return Some(builder.body(boxed_body));
-    }
-
-    None
-}
-
-pub async fn read_file_range(filepath: &PathBuf) -> Option<FileChunk> {
-    let start = 0;
-    let length = 100;
-
-    // let mut input = File::open("input.bin")?;
-
-    // // Seek to the start position
-    // input.seek(SeekFrom::Start(start))?;
-
-    // // Create a reader with a fixed length
-    // let mut chunk = input.take(length);
-
-    // let mut output = File::create("output.bin")?;
-
-    // // Copy the chunk into the output file
-    // io::copy(&mut chunk, &mut output)?;
-
-    let mut file_to_read = match File::open(filepath).await {
-        Ok(ftr) => ftr,
+    let mut file_to_read = match File::open(path_details.path).await {
+        Ok(f) => f,
         _ => return None,
     };
 
-    let _ = file_to_read.seek(SeekFrom::Start(start));
+    let metadata = match file_to_read.metadata().await {
+        Ok(m) => m,
+        _ => return None,
+    };
 
-    let chunk = file_to_read.take(length);
+    let size = metadata.len() as usize;
 
-    Some(chunk)
+    let ranges = match get_ranges(range_str, size) {
+        Some(rngs) => rngs,
+        _ => return None,
+    };
+
+    if 0 == ranges.len() {
+        return None;
+    }
+
+    // build response
+    let mut builder = Response::builder()
+        .status(StatusCode::PARTIAL_CONTENT)
+        .header(CONTENT_TYPE, content_type);
+
+    if let Some(enc) = path_details.content_encoding {
+        builder = builder.header(CONTENT_ENCODING, enc);
+    }
+
+    if 1 == ranges.len() {
+        let (start, end) = match ranges.get(0) {
+            Some(f) => f,
+            _ => return None,
+        };
+        println!("one length range");
+
+        let _ = file_to_read.seek(SeekFrom::Start(start.clone() as u64));
+        let mut chunk = file_to_read.take((end - start + 1) as u64);
+
+        let mut buffer: Vec<u8> = Vec::with_capacity(end - start + 1);
+        buffer.resize(end - start + 1, 0);
+        println!("buffer length: {}", buffer.len());
+
+        if let Ok(chunk_buffer) = chunk.read(&mut buffer).await {
+            // let chonker = chunk.into_inner();
+            let content_range_header = get_content_range_header_str(start, end, &size);
+            return Some(
+                builder
+                    .header(CONTENT_LENGTH, buffer.len())
+                    .header(CONTENT_RANGE, content_range_header)
+                    .body(
+                        Full::new(bytes::Bytes::from(buffer))
+                            .map_err(|e| match e {})
+                            .boxed(),
+                    ),
+            );
+        };
+    }
+
+    None
 }
