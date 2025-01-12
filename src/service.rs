@@ -35,9 +35,7 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        // IF HEAD get details
-
-        // ELSE any other request serves a file
+        // get potential filepaths
         let paths = get_filepaths_from_request(
             &self.directory,
             &self.available_encodings,
@@ -45,20 +43,24 @@ impl Service<Request<IncomingBody>> for Svc {
             &req,
         );
 
+        // head request
         if Method::HEAD == req.method() {
             return Box::pin(async move { responses::build_head_response(paths).await });
         }
 
         if Method::GET == req.method() {
+            // range request
             if let Some(range_header_string) = get_range_header_as_string(&req) {
                 return Box::pin(async move {
                     responses::build_get_range_response(paths, range_header_string).await
                 });
             };
 
+            // get request
             return Box::pin(async move { responses::build_get_response(paths).await });
         }
 
+        // not found
         Box::pin(async move {
             responses::build_last_resort_response(StatusCode::NOT_FOUND, responses::NOT_FOUND_404)
         })
