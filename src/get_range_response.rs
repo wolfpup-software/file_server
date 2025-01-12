@@ -6,7 +6,9 @@ use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYP
 use hyper::http::{Response, StatusCode};
 use std::path::PathBuf;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
+
+use std::io::SeekFrom;
+use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::response_paths::PathDetails;
@@ -164,17 +166,19 @@ pub async fn build_get_range_response_from_filepath(
             Some(f) => f,
             _ => return None,
         };
-        println!("one length range");
 
-        let _ = file_to_read.seek(SeekFrom::Start(start.clone() as u64));
-        let mut chunk = file_to_read.take((end - start + 1) as u64);
+        let cursor = match file_to_read
+            .seek(SeekFrom::Start(start.clone() as u64))
+            .await
+        {
+            Ok(crsr) => crsr,
+            _ => return None,
+        };
 
         let mut buffer: Vec<u8> = Vec::with_capacity(end - start + 1);
         buffer.resize(end - start + 1, 0);
-        println!("buffer length: {}", buffer.len());
 
-        if let Ok(chunk_buffer) = chunk.read(&mut buffer).await {
-            // let chonker = chunk.into_inner();
+        if let Ok(_buffer_len) = file_to_read.read_exact(&mut buffer).await {
             let content_range_header = get_content_range_header_str(start, end, &size);
             return Some(
                 builder
