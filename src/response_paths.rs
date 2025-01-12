@@ -43,6 +43,9 @@ fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<
     //
     // This also helps return a 404 with the content_type `text/html`
     // if the directory does not exist
+
+    // this hits the hard drive disk early to tell if a file
+    // might be better to do in the actual response
     if !target_path.is_file() {
         target_path.push(INDEX);
     }
