@@ -253,7 +253,7 @@ async fn build_multipart_range_response(
     ranges: Vec<(usize, usize)>,
     content_type: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let boundary_core = "delays_have_dangerous_ends";
+    let boundary_core = "k1ng_0f_1nf1n1t3_5pac3";
     let boundary = "--".to_string() + boundary_core;
 
     // create a byte array

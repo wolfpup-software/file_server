@@ -61,7 +61,6 @@ Otherwise it will serve the unencoded file.
 
 `File_server` supports range requests and multipart range requests.
 
-
 ## Licence
 
 BSD 3-Clause License
