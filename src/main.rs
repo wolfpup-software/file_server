@@ -1,13 +1,13 @@
-use std::env;
-use std::path::PathBuf;
-
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
+use std::env;
+use std::path::PathBuf;
 use tokio::net::TcpListener;
 
 mod config;
 mod content_encoding;
 mod content_type;
+mod get_range_response;
 mod get_response;
 mod head_response;
 mod response_paths;
@@ -36,6 +36,8 @@ async fn main() {
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
 
+    // let service = service::Svc::new(&config, &available_encodings);
+
     loop {
         let (stream, _remote_address) = match listener.accept().await {
             Ok(strm) => strm,
@@ -51,5 +53,15 @@ async fn main() {
                 .serve_connection(io, service)
                 .await
         });
+
+        // let io = TokioIo::new(stream);
+        // let svc = service.clone();
+
+        // tokio::task::spawn(async move {
+        //     // log service errors here
+        //     Builder::new(TokioExecutor::new())
+        //         .serve_connection(io, svc)
+        //         .await
+        // });
     }
 }

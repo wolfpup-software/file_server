@@ -32,10 +32,10 @@ A valid JSON configuration file is required to run this fileserver.
 
 ### Run
 
-Bash the following command to serve files in the `cwd` at `localhost:3000`:
+Bash the following command to serve files in the `cwd` at `localhost:4000`:
 
 ```sh
-file_server <path to config>
+file_server path/to/config.json
 ```
 
 Open a browser and visit `http://localhost:3000`.
@@ -56,6 +56,10 @@ Accept-Encoding: gzip;
 ```
 
 Otherwise it will serve the unencoded file.
+
+### Range requests
+
+`File_server` supports range requests and multipart range requests.
 
 ## Licence
 

@@ -24,6 +24,21 @@ pub struct ReqDetails {
     pub path_details: Vec<PathDetails>,
 }
 
+pub fn get_path_from_request(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
+    let uri_path = req.uri().path();
+    let target_path = match uri_path.strip_prefix(FWD_SLASH) {
+        Some(p) => dir.join(p),
+        _ => dir.join(uri_path),
+    };
+
+    // confirm path resides in directory
+    if target_path.starts_with(dir) {
+        return Some(target_path);
+    }
+
+    None
+}
+
 fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<PathBuf> {
     let uri_path = req.uri().path();
     let mut target_path = match uri_path.strip_prefix(FWD_SLASH) {
@@ -43,6 +58,11 @@ fn get_path_from_request_url(dir: &Path, req: &Request<IncomingBody>) -> Option<
     //
     // This also helps return a 404 with the content_type `text/html`
     // if the directory does not exist
+
+    // this hits the hard drive disk early to tell if a file
+    // might be better to do in the actual response
+
+    // do this in actual response
     if !target_path.is_file() {
         target_path.push(INDEX);
     }

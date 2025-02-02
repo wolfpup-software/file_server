@@ -1,20 +1,16 @@
-use std::future::Future;
-use std::path::PathBuf;
-use std::pin::Pin;
-
 use hyper::body::Incoming as IncomingBody;
 use hyper::service::Service;
 use hyper::Method;
 use hyper::Request;
 use hyper::StatusCode;
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::Pin;
 
 use crate::config::Config;
 use crate::content_encoding::AvailableEncodings;
-use crate::response_paths::get_filepaths_from_request;
-use crate::responses::{
-    build_get_response, build_head_response, build_last_resort_response, NOT_FOUND_404,
-};
-
+use crate::response_paths::{get_filepaths_from_request, get_path_from_request};
+use crate::responses;
 use crate::type_flyweight::BoxedResponse;
 
 pub struct Svc {
@@ -39,9 +35,9 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        // IF HEAD get details
+        // get potential filepaths
+        let path = get_path_from_request(&self.directory, &req);
 
-        // ELSE any other request serves a file
         let paths = get_filepaths_from_request(
             &self.directory,
             &self.available_encodings,
@@ -49,14 +45,36 @@ impl Service<Request<IncomingBody>> for Svc {
             &req,
         );
 
-        if req.method() == Method::HEAD {
-            return Box::pin(async move { build_head_response(paths).await });
+        // head request
+        if Method::HEAD == req.method() {
+            return Box::pin(async move { responses::build_head_response(paths).await });
         }
 
-        if req.method() == Method::GET {
-            return Box::pin(async move { build_get_response(paths).await });
+        if Method::GET == req.method() {
+            // range request
+            if let Some(range_header_string) = get_range_header_as_string(&req) {
+                return Box::pin(async move {
+                    responses::build_get_range_response(paths, range_header_string).await
+                });
+            };
+
+            // get request
+            return Box::pin(async move { responses::build_get_response(paths).await });
         }
 
-        Box::pin(async move { build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404) })
+        // not found
+        Box::pin(async move {
+            responses::build_last_resort_response(StatusCode::NOT_FOUND, responses::NOT_FOUND_404)
+        })
     }
+}
+
+fn get_range_header_as_string(req: &Request<IncomingBody>) -> Option<String> {
+    if let Some(range_header) = req.headers().get("range") {
+        if let Ok(range_str) = range_header.to_str() {
+            return Some(range_str.to_string());
+        };
+    };
+
+    None
 }
