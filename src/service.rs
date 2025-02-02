@@ -9,7 +9,7 @@ use std::pin::Pin;
 
 use crate::config::Config;
 use crate::content_encoding::AvailableEncodings;
-use crate::response_paths::get_filepaths_from_request;
+use crate::response_paths::{get_filepaths_from_request, get_path_from_request};
 use crate::responses;
 use crate::type_flyweight::BoxedResponse;
 
@@ -36,6 +36,8 @@ impl Service<Request<IncomingBody>> for Svc {
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
         // get potential filepaths
+        let path = get_path_from_request(&self.directory, &req);
+
         let paths = get_filepaths_from_request(
             &self.directory,
             &self.available_encodings,

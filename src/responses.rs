@@ -10,6 +10,7 @@ use crate::head_response::build_head_response_from_filepath;
 use crate::response_paths::ReqDetails;
 use crate::type_flyweight::BoxedResponse;
 
+pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
 pub const NOT_FOUND_404: &str = "404 not found";
 
 pub async fn build_head_response(
@@ -66,7 +67,7 @@ pub async fn build_get_range_response(
         }
     };
 
-    build_last_resort_response(StatusCode::NOT_FOUND, &NOT_FOUND_404)
+    build_last_resort_response(StatusCode::RANGE_NOT_SATISFIABLE, &NOT_FOUND_416)
 }
 
 pub fn build_last_resort_response(
