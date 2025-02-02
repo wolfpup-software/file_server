@@ -1,11 +1,13 @@
-use http_body_util::BodyExt;
-use http_body_util::Full;
+use futures_util::TryStreamExt;
+use http_body_util::{BodyExt, Full, StreamBody};
+use hyper::body::Frame;
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
 use hyper::http::{Response, StatusCode};
 use std::fs::Metadata;
 use std::io::SeekFrom;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio_util::io::ReaderStream;
 
 use crate::response_paths::PathDetails;
 use crate::type_flyweight::BoxedResponse;
@@ -17,14 +19,6 @@ use crate::type_flyweight::BoxedResponse;
 // multi range requests require an entire different strategy
 // Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
 
-// what about a starts with ends with situation?
-
-// if start range int is less than last last
-// return None
-
-//
-//
-
 // on any fail return nothing
 fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
     let stripped_range = range_str.trim();
@@ -33,17 +27,14 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
         _ => return None,
     };
 
-    let mut ranges: Vec<(usize, usize)> = Vec::new();
-
-    // keep reference to previous range
-    // if next is out of order, return
-
     // track the last
     let mut last_last = 0;
 
-    let split_values = range_values_str.split(",");
-    for value_str in split_values {
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    for value_str in range_values_str.split(",") {
         let trimmed_value_str = value_str.trim();
+
+        // Range: <unit>=-<suffix-length>
         // M is the byte size of file
         // N is the start index
         // possible seek and read from N -> M
@@ -65,6 +56,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
             continue;
         }
 
+        // Range: <unit>=<range-start>-
         // M is byte size of file
         // N is the
         // possible seek and read from (M - N) -> M
@@ -91,6 +83,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
             continue;
         }
 
+        // Range: <unit>=<range-start>-<range-end>
         // start-end value range
         let mut values = trimmed_value_str.split("-");
 
@@ -179,17 +172,17 @@ pub async fn build_get_range_response_from_filepath(
         .await;
     }
 
-    // multi
-    if 1 < ranges.len() {
-        return build_multipart_range_response(
-            file_to_read,
-            metadata,
-            path_details,
-            ranges,
-            content_type,
-        )
-        .await;
-    }
+    // // multi
+    // if 1 < ranges.len() {
+    //     return build_multipart_range_response(
+    //         file_to_read,
+    //         metadata,
+    //         path_details,
+    //         ranges,
+    //         content_type,
+    //     )
+    //     .await;
+    // }
 
     None
 }
@@ -203,14 +196,6 @@ async fn build_single_range_response(
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     // build response
     let size = metadata.len() as usize;
-
-    let mut builder = Response::builder()
-        .status(StatusCode::PARTIAL_CONTENT)
-        .header(CONTENT_TYPE, content_type);
-
-    if let Some(enc) = path_details.content_encoding {
-        builder = builder.header(CONTENT_ENCODING, enc);
-    }
 
     let (start, end) = match ranges.get(0) {
         Some(f) => f,
@@ -229,23 +214,34 @@ async fn build_single_range_response(
     let mut buffer: Vec<u8> = Vec::with_capacity(end - start + 1);
     buffer.resize(end - start + 1, 0);
 
-    if let Ok(_buffer_len) = file_to_read.read_exact(&mut buffer).await {
-        let content_range_header = build_content_range_header_str(start, end, &size);
-        return Some(
-            builder
-                .header(CONTENT_LENGTH, buffer.len().to_string())
-                .header(CONTENT_RANGE, content_range_header)
-                .body(
-                    Full::new(bytes::Bytes::from(buffer))
-                        .map_err(|e| match e {})
-                        .boxed(),
-                ),
-        );
-    };
+    let content_range_header = build_content_range_header_str(start, end, &size);
+    let reader_stream = ReaderStream::with_capacity(file_to_read, size);
+    let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
+    let boxed_body = stream_body.boxed();
 
-    None
+    let mut builder = Response::builder()
+        .status(StatusCode::PARTIAL_CONTENT)
+        .header(CONTENT_TYPE, content_type)
+        .header(CONTENT_RANGE, content_range_header)
+        .header(CONTENT_LENGTH, buffer.len().to_string());
+
+    if let Some(enc) = path_details.content_encoding {
+        builder = builder.header(CONTENT_ENCODING, enc);
+    }
+
+    return Some(builder.body(boxed_body));
 }
 
+// Multi-part ranges are particularly difficult to stream frame by frame.
+// Solution could be a facade buffer that can:
+//   - read a file frame by frame
+//   - over multiple ranges
+//   - while including boundaries
+//
+// Short solution is to limit file length.
+//
+// For now it seems not worth including.
+// 
 async fn build_multipart_range_response(
     mut file_to_read: File,
     metadata: Metadata,

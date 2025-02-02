@@ -61,6 +61,12 @@ Otherwise it will serve the unencoded file.
 
 `File_server` supports range requests and multipart range requests.
 
+Multipart range requests have a couple of requirements:
+- ranges must be in order
+- ranges must not overlap
+
+This prevents arbitrarily loading a file multiple times over via range requests.
+
 ## Licence
 
 BSD 3-Clause License
