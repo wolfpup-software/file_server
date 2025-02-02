@@ -59,7 +59,9 @@ Otherwise it will serve the unencoded file.
 
 ### Range requests
 
-`File_server` supports range requests and multipart range requests.
+`File_server` supports range requests.
+
+Multipart ranges are supported but not deployed.
 
 ## Licence
 
