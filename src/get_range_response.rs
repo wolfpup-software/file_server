@@ -181,25 +181,6 @@ pub async fn build_get_range_response_from_filepath(
 
     // multi
     if 1 < ranges.len() {
-        // HTTP/1.1 206 Partial Content
-        // Content-Type: multipart/byteranges; boundary=3d6b6a416f9b5
-        // Content-Length: N
-        //
-        // --3d6b6a416f9b5
-        // Content-Type: text/html
-        // Content-Range: bytes 0-50/1270
-
-        // <!doctype html>
-        // <html lang="en-US">
-        // <head>
-        //     <title>Example Do
-        // --3d6b6a416f9b5
-        // Content-Type: text/html
-        // Content-Range: bytes 100-150/1270
-
-        // eta http-equiv="Content-type" content="text/html; c
-        // --3d6b6a416f9b5--
-
         return build_multipart_range_response(
             file_to_read,
             metadata,
@@ -252,7 +233,7 @@ async fn build_single_range_response(
         let content_range_header = build_content_range_header_str(start, end, &size);
         return Some(
             builder
-                .header(CONTENT_LENGTH, buffer.len())
+                .header(CONTENT_LENGTH, buffer.len().to_string())
                 .header(CONTENT_RANGE, content_range_header)
                 .body(
                     Full::new(bytes::Bytes::from(buffer))
@@ -272,7 +253,8 @@ async fn build_multipart_range_response(
     ranges: Vec<(usize, usize)>,
     content_type: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let boundary = "--delays_have_dangerous_ends\n";
+    let boundary_core = "delays_have_dangerous_ends";
+    let boundary = "--".to_string() + boundary_core;
 
     // create a byte array
     let mut big_buffer: Vec<u8> = Vec::new();
@@ -297,15 +279,16 @@ async fn build_multipart_range_response(
             return None;
         };
 
-        // then add
+        // then add boundary
         big_buffer.extend(boundary.as_bytes());
-        // "
-        // Content-Type: text/html
-        // Content-Range: bytes 0-50/1270
-        // "
+        big_buffer.extend("\n".as_bytes());
+
+        // then add headers
         let multi_headers = CONTENT_TYPE.to_string()
             + ": "
             + content_type
+            + "\n"
+            // gotta add content encoding
             + CONTENT_RANGE.as_str()
             + ": bytes "
             + &start.to_string()
@@ -316,13 +299,29 @@ async fn build_multipart_range_response(
             + "\n\n";
         big_buffer.extend(multi_headers.as_bytes());
         big_buffer.extend(buffer);
+        big_buffer.extend("\n".as_bytes());
     }
+
+    // add final boundary
     big_buffer.extend(boundary.as_bytes());
     big_buffer.extend("--".as_bytes());
 
     // Now build a response
-    let content_length = big_buffer.len();
+    let req_content_type = "multipart/byteranges; boundary=".to_string() + boundary_core;
 
-    // return a response
-    None
+    let mut builder = Response::builder()
+        .status(StatusCode::PARTIAL_CONTENT)
+        .header(CONTENT_TYPE, req_content_type);
+
+    if let Some(enc) = path_details.content_encoding {
+        builder = builder.header(CONTENT_ENCODING, enc);
+    }
+
+    return Some(
+        builder.header(CONTENT_LENGTH, big_buffer.len()).body(
+            Full::new(bytes::Bytes::from(big_buffer))
+                .map_err(|e| match e {})
+                .boxed(),
+        ),
+    );
 }
