@@ -35,9 +35,11 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
         let trimmed_value_str = value_str.trim();
 
         // Range: <unit>=-<suffix-length>
+        //
         // M is the byte size of file
         // N is the start index
         // possible seek and read from N -> M
+        //
         if let Some(without_suffix) = trimmed_value_str.strip_suffix("-") {
             // parse int
             // push
@@ -57,9 +59,11 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
         }
 
         // Range: <unit>=<range-start>-
+        //
         // M is byte size of file
         // N is the
         // possible seek and read from (M - N) -> M
+        //
         if let Some(without_prefix) = trimmed_value_str.strip_prefix("-") {
             // possible suffix
             let end_range_int: usize = match without_prefix.parse() {
@@ -84,7 +88,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
         }
 
         // Range: <unit>=<range-start>-<range-end>
-        // start-end value range
+        //
         let mut values = trimmed_value_str.split("-");
 
         let start_range_str = match values.next() {
@@ -172,18 +176,6 @@ pub async fn build_get_range_response_from_filepath(
         .await;
     }
 
-    // // multi
-    // if 1 < ranges.len() {
-    //     return build_multipart_range_response(
-    //         file_to_read,
-    //         metadata,
-    //         path_details,
-    //         ranges,
-    //         content_type,
-    //     )
-    //     .await;
-    // }
-
     None
 }
 
@@ -241,7 +233,7 @@ async fn build_single_range_response(
 // Short solution is to limit file length.
 //
 // For now it seems not worth including.
-// 
+//
 async fn build_multipart_range_response(
     mut file_to_read: File,
     metadata: Metadata,
