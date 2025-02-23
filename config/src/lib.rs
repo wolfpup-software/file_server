@@ -1,3 +1,5 @@
+pub mod content_encoding;
+
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::path;

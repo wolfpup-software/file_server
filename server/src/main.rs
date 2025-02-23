@@ -1,21 +1,11 @@
-mod config;
-mod content_encoding;
-mod content_type;
-mod get_range_response;
-mod get_response;
-mod head_response;
-mod response_paths;
-mod responses;
 mod service;
-mod type_flyweight;
 
+use config::Config;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use std::env;
 use std::path::PathBuf;
 use tokio::net::TcpListener;
-
-use crate::content_encoding::AvailableEncodings;
 
 #[tokio::main]
 async fn main() {
@@ -29,12 +19,14 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    let available_encodings = AvailableEncodings::new(&config.content_encodings);
+    // let available_encodings = AvailableEncodings::new(&config.content_encodings);
 
     let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
+
+    // let service = service::Svc::new(&config, &available_encodings);
 
     loop {
         let (stream, _remote_address) = match listener.accept().await {
@@ -43,13 +35,12 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let service = service::Svc::new(&config, &available_encodings);
 
-        tokio::task::spawn(async move {
-            // log service errors here
-            Builder::new(TokioExecutor::new())
-                .serve_connection(io, service)
-                .await
-        });
+        // tokio::task::spawn(async move {
+        //     // log service errors here
+        //     Builder::new(TokioExecutor::new())
+        //         .serve_connection(io, service)
+        //         .await
+        // });
     }
 }
