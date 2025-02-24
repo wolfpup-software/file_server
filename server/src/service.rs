@@ -7,68 +7,43 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use config::content_encoding::AvailableEncodings;
-use config::Config;
+use responses;
 
-// use crate::response_paths::{get_filepaths_from_request, get_path_from_request};
-// use crate::responses;
-// use crate::type_flyweight::BoxedResponse;
+use config::AvailableEncodings;
+use config::ServiceRequirements;
 
 pub struct Svc {
-    directory: PathBuf,
+    service_requirements: ServiceRequirements,
     available_encodings: AvailableEncodings,
-    filepath_404s: Vec<(PathBuf, Option<String>)>,
+    ip_address: String,
 }
 
+// take a 
 impl Svc {
-    pub fn new(config: &Config, available_encodings: &AvailableEncodings) -> Svc {
+    pub fn new(service_requirements: &ServiceRequirements, available_encodings: &AvailableEncodings, ip_address: &str) -> Svc {
         Svc {
-            directory: config.directory.clone(),
-            available_encodings: available_encodings.clone(),
-            filepath_404s: config.filepath_404s.clone(),
+            service_requirements: service_requirements.clone(),
+            available_encodings:  available_encodings.clone(),
+            ip_address: ip_address.to_string(),
         }
     }
 }
 
-// impl Service<Request<IncomingBody>> for Svc {
-//     type Response = BoxedResponse;
-//     type Error = hyper::http::Error;
-//     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+impl Service<Request<IncomingBody>> for Svc {
+    type Response = responses::BoxedResponse;
+    type Error = hyper::http::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-//     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-//         // get potential filepaths
-//         let path = get_path_from_request(&self.directory, &req);
+    fn call(&self, req: Request<IncomingBody>) -> Self::Future {
+        // get path details
 
-//         let paths = get_filepaths_from_request(
-//             &self.directory,
-//             &self.available_encodings,
-//             &self.filepath_404s,
-//             &req,
-//         );
+        
 
-//         // head request
-//         if Method::HEAD == req.method() {
-//             return Box::pin(async move { responses::build_head_response(paths).await });
-//         }
-
-//         if Method::GET == req.method() {
-//             // range request
-//             if let Some(range_header_string) = get_range_header_as_string(&req) {
-//                 return Box::pin(async move {
-//                     responses::build_get_range_response(paths, range_header_string).await
-//                 });
-//             };
-
-//             // get request
-//             return Box::pin(async move { responses::build_get_response(paths).await });
-//         }
-
-//         // not found
-//         Box::pin(async move {
-//             responses::build_last_resort_response(StatusCode::NOT_FOUND, responses::NOT_FOUND_404)
-//         })
-//     }
-// }
+        Box::pin(async move {
+            responses::build_response()
+        })
+    }
+}
 
 // fn get_range_header_as_string(req: &Request<IncomingBody>) -> Option<String> {
 //     if let Some(range_header) = req.headers().get("range") {

@@ -37,14 +37,14 @@ impl AvailableEncodings {
             _ => false,
         }
     }
-}
 
-pub fn get_encoded_ext(encoding: &str) -> Option<&str> {
-    match encoding {
-        "gzip" => Some(".gz"),
-        "zstd" => Some(".zst"),
-        "br" => Some(".br"),
-        "deflate" => Some(".zz"),
-        _ => None,
+    pub fn get_encoded_ext(&self, encoding: &str) -> Option<&str> {
+        match encoding {
+            "gzip" => Some(".gz"),
+            "zstd" => Some(".zst"),
+            "br" => Some(".br"),
+            "deflate" => Some(".zz"),
+            _ => None,
+        }
     }
 }

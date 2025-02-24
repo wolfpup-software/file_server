@@ -12,6 +12,7 @@ futures-util = { workspace = true}
 http-body-util = { workspace = true}
 hyper-util = { workspace = true}
 hyper = { workspace = true}
+responses = { path = "../responses" }
 serde_json = { workspace = true}
 serde = { workspace = true}
 tokio-util = { workspace = true}

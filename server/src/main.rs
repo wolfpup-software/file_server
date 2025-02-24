@@ -1,6 +1,9 @@
 mod service;
 
 use config::Config;
+use config::AvailableEncodings;
+use config::get_service_requirements;
+
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use std::env;
@@ -19,22 +22,23 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    // let available_encodings = AvailableEncodings::new(&config.content_encodings);
+    let available_encodings = AvailableEncodings::new(&config.content_encodings);
+    let service_requirements = get_service_requirements(&config);
 
     let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
 
-    // let service = service::Svc::new(&config, &available_encodings);
-
     loop {
-        let (stream, _remote_address) = match listener.accept().await {
+        let (stream, ip_address) = match listener.accept().await {
             Ok(strm) => strm,
             Err(e) => return println!("tcp accept error:\n{}", e),
         };
 
         let io = TokioIo::new(stream);
+
+        let service = service::Svc::new(&service_requirements, &available_encodings, &ip_address.to_string());
 
         // tokio::task::spawn(async move {
         //     // log service errors here

@@ -1,4 +1,6 @@
-pub mod content_encoding;
+mod content_encoding;
+
+pub use crate::content_encoding::AvailableEncodings;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -6,12 +8,21 @@ use std::path;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
+type FallbackFilepaths = Vec<(PathBuf, String, Option<String>)>;
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
     pub content_encodings: Vec<String>,
-    pub filepath_404s: Vec<(PathBuf, Option<String>)>,
+    pub filepath_404s: FallbackFilepaths,
+}
+
+#[derive(Clone, Debug)]
+pub struct ServiceRequirements {
+    pub directory: PathBuf,
+    pub encodings: AvailableEncodings,
+    pub filepath_404s: FallbackFilepaths,
 }
 
 impl Config {
@@ -59,19 +70,28 @@ impl Config {
     }
 }
 
+pub fn get_service_requirements(config: &Config) -> ServiceRequirements {
+    ServiceRequirements {
+        directory: config.directory.clone(),
+        encodings: AvailableEncodings::new(&config.content_encodings),
+        filepath_404s: config.filepath_404s.clone(),
+    }
+}
+
 fn get_paths(
     source_dir: &Path,
-    filepaths: Vec<(PathBuf, Option<String>)>,
-) -> Result<Vec<(PathBuf, Option<String>)>, String> {
+    filepaths: FallbackFilepaths,
+) -> Result<FallbackFilepaths, String> {
     let mut updated_filepaths = Vec::new();
 
-    for (file_path, encoding_type) in filepaths {
+    for (file_path, conent_type, encoding_type) in filepaths {
         let target_path = source_dir.join(file_path);
         let target_path_abs = match path::absolute(target_path) {
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
-        updated_filepaths.push((target_path_abs, encoding_type));
+        
+        updated_filepaths.push((target_path_abs, conent_type, encoding_type));
     }
 
     Ok(updated_filepaths)
