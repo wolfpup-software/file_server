@@ -1,8 +1,8 @@
 use http_body_util::{BodyExt, Full};
-use hyper::header::{HeaderValue, CONTENT_TYPE, CONTENT_ENCODING};
+use hyper::body::Incoming as IncomingBody;
+use hyper::header::{HeaderValue, CONTENT_ENCODING, CONTENT_TYPE, RANGE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
-use hyper::body::Incoming as IncomingBody;
 use std::path::PathBuf;
 
 use crate::content_type::HTML;
@@ -19,6 +19,7 @@ pub const NOT_FOUND_404: &str = "404 not found";
 pub struct RequestDetails {
     pub path: String,
     pub content_encoding: Option<String>,
+    pub range: Option<String>,
 }
 
 // pub async fn build_head_response(
@@ -78,23 +79,31 @@ pub struct RequestDetails {
 //     build_last_resort_response(StatusCode::RANGE_NOT_SATISFIABLE, &NOT_FOUND_416)
 // }
 
-pub fn get_request_details(req: &Request<IncomingBody>) -> RequestDetails {
-    let path = req.uri().path();
+fn get_content_encoding_header_as_string(req: &Request<IncomingBody>) -> Option<String> {
+    if let Some(ce) = req.headers().get(CONTENT_ENCODING) {
+        if let Ok(ce_str) = ce.to_str() {
+            return Some(ce_str.to_string());
+        }
+    }
 
-    let content_encoding = req.headers().get(CONTENT_ENCODING);
-    let content_encoding_str = match content_encoding {
-        Some(ce) => {
-            match ce.to_str() {
-                Ok(ce_str) => Some(ce_str.to_string()),
-                _ => None,
-            }
-        },
-        _ => None,
+    None
+}
+
+fn get_range_header_as_string(req: &Request<IncomingBody>) -> Option<String> {
+    if let Some(range_header) = req.headers().get(RANGE) {
+        if let Ok(range_str) = range_header.to_str() {
+            return Some(range_str.to_string());
+        };
     };
 
+    None
+}
+
+pub fn get_request_details(req: &Request<IncomingBody>) -> RequestDetails {
     RequestDetails {
-        path: path.to_string(),
-        content_encoding: content_encoding_str,
+        path: req.uri().path().to_string(),
+        content_encoding: get_content_encoding_header_as_string(req),
+        range: get_range_header_as_string(req),
     }
 }
 

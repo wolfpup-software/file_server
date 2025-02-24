@@ -78,10 +78,7 @@ pub fn get_service_requirements(config: &Config) -> ServiceRequirements {
     }
 }
 
-fn get_paths(
-    source_dir: &Path,
-    filepaths: FallbackFilepaths,
-) -> Result<FallbackFilepaths, String> {
+fn get_paths(source_dir: &Path, filepaths: FallbackFilepaths) -> Result<FallbackFilepaths, String> {
     let mut updated_filepaths = Vec::new();
 
     for (file_path, conent_type, encoding_type) in filepaths {
@@ -90,7 +87,7 @@ fn get_paths(
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
-        
+
         updated_filepaths.push((target_path_abs, conent_type, encoding_type));
     }
 

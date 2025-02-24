@@ -1,8 +1,8 @@
 mod service;
 
-use config::Config;
-use config::AvailableEncodings;
 use config::get_service_requirements;
+use config::AvailableEncodings;
+use config::Config;
 
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
@@ -38,7 +38,11 @@ async fn main() {
 
         let io = TokioIo::new(stream);
 
-        let service = service::Svc::new(&service_requirements, &available_encodings, &ip_address.to_string());
+        let service = service::Svc::new(
+            &service_requirements,
+            &available_encodings,
+            &ip_address.to_string(),
+        );
 
         // tokio::task::spawn(async move {
         //     // log service errors here
