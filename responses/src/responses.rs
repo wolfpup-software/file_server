@@ -107,7 +107,7 @@ pub fn get_request_details(req: &Request<IncomingBody>) -> RequestDetails {
     }
 }
 
-pub fn build_response() -> Result<BoxedResponse, hyper::http::Error> {
+pub fn build_response(_req_details: &RequestDetails) -> Result<BoxedResponse, hyper::http::Error> {
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 

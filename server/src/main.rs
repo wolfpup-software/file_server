@@ -2,7 +2,6 @@ mod service;
 
 use config::get_service_requirements;
 use config::AvailableEncodings;
-use config::Config;
 
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
@@ -44,11 +43,11 @@ async fn main() {
             &ip_address.to_string(),
         );
 
-        // tokio::task::spawn(async move {
-        //     // log service errors here
-        //     Builder::new(TokioExecutor::new())
-        //         .serve_connection(io, service)
-        //         .await
-        // });
+        tokio::task::spawn(async move {
+            // log service errors here
+            Builder::new(TokioExecutor::new())
+                .serve_connection(io, service)
+                .await
+        });
     }
 }

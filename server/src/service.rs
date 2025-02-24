@@ -1,10 +1,7 @@
 use hyper::body::Incoming as IncomingBody;
 use hyper::service::Service;
-use hyper::Method;
 use hyper::Request;
-use hyper::StatusCode;
 use std::future::Future;
-use std::path::PathBuf;
 use std::pin::Pin;
 
 use responses;
@@ -18,7 +15,6 @@ pub struct Svc {
     ip_address: String,
 }
 
-// take a
 impl Svc {
     pub fn new(
         service_requirements: &ServiceRequirements,
@@ -41,6 +37,6 @@ impl Service<Request<IncomingBody>> for Svc {
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
         let path_details = responses::get_request_details(&req);
 
-        Box::pin(async move { responses::build_response() })
+        Box::pin(async move { responses::build_response(&path_details) })
     }
 }
