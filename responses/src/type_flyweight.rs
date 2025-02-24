@@ -12,3 +12,20 @@ pub struct RequestDetails {
     pub content_encoding: Option<Vec<String>>,
     pub range: Option<String>,
 }
+
+type FallbackFilepaths = Vec<(PathBuf, String, Option<String>)>;
+
+#[derive(Clone, Debug)]
+pub struct AvailableEncodings {
+    pub gzip: bool,
+    pub deflate: bool,
+    pub br: bool,
+    pub zstd: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct ServiceRequirements {
+    pub directory: PathBuf,
+    pub encodings: AvailableEncodings,
+    pub filepath_404s: FallbackFilepaths,
+}

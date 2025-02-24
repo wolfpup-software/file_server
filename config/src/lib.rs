@@ -1,7 +1,3 @@
-mod content_encoding;
-
-pub use crate::content_encoding::AvailableEncodings;
-
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::path;
@@ -15,13 +11,6 @@ pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
     pub content_encodings: Vec<String>,
-    pub filepath_404s: FallbackFilepaths,
-}
-
-#[derive(Clone, Debug)]
-pub struct ServiceRequirements {
-    pub directory: PathBuf,
-    pub encodings: AvailableEncodings,
     pub filepath_404s: FallbackFilepaths,
 }
 
@@ -67,14 +56,6 @@ impl Config {
         config.filepath_404s = updated_404s;
 
         Ok(config)
-    }
-}
-
-pub fn get_service_requirements(config: &Config) -> ServiceRequirements {
-    ServiceRequirements {
-        directory: config.directory.clone(),
-        encodings: AvailableEncodings::new(&config.content_encodings),
-        filepath_404s: config.filepath_404s.clone(),
     }
 }
 

@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use std::pin::Pin;
 
 use crate::config::Config;
-use crate::content_encoding::AvailableEncodings;
+// use crate::content_encoding::AvailableEncodings;
 use crate::response_paths::{get_filepaths_from_request, get_path_from_request};
 use crate::responses;
-use crate::type_flyweight::BoxedResponse;
+use crate::type_flyweight::{AvailableEncodings, BoxedResponse};
 
 pub struct Svc {
     directory: PathBuf,
