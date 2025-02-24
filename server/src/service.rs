@@ -10,7 +10,7 @@ use std::pin::Pin;
     different libraries and dependencies.
 */
 
-use responses::{AvailableEncodings, BoxedResponse, ServiceRequirements};
+use responses::{BoxedResponse, ServiceRequirements};
 
 pub struct Svc {
     service_requirements: ServiceRequirements,
@@ -30,8 +30,10 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        let path_details = responses::get_request_details(&req);
+        // requires a clone.
+        // cannot guarantee service_requirements isn't dropped
+        let service_requirements = self.service_requirements.clone();
 
-        Box::pin(async move { responses::build_response(&path_details) })
+        Box::pin(async move { responses::build_response(req, service_requirements) })
     }
 }

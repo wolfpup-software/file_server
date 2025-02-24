@@ -1,6 +1,6 @@
 mod service;
 
-use responses::{get_service_requirements, AvailableEncodings};
+use responses::get_service_requirements;
 
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;

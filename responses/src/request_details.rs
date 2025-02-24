@@ -1,19 +1,8 @@
-use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming as IncomingBody;
-use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE, RANGE};
-use hyper::http::{Request, Response};
-use hyper::StatusCode;
-use std::path::PathBuf;
+use hyper::header::{ACCEPT_ENCODING, RANGE};
+use hyper::http::Request;
 
-use crate::content_type::HTML;
-// use crate::get_range_response::build_get_range_response_from_filepath;
-// use crate::get_response::build_get_response_from_filepath;
-// use crate::head_response::build_head_response_from_filepath;
-// use crate::response_paths::ReqDetails;
-use crate::type_flyweight::{BoxedResponse, RequestDetails};
-
-pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
-pub const NOT_FOUND_404: &str = "404 not found";
+use crate::type_flyweight::RequestDetails;
 
 fn get_content_encodings_from_request(req: &Request<IncomingBody>) -> Option<Vec<String>> {
     let mut encodings = Vec::new();
@@ -47,6 +36,7 @@ fn get_range_from_request(req: &Request<IncomingBody>) -> Option<String> {
 
 pub fn get_request_details(req: &Request<IncomingBody>) -> RequestDetails {
     RequestDetails {
+        method: req.method().clone(),
         path: req.uri().path().to_string(),
         content_encoding: get_content_encodings_from_request(req),
         range: get_range_from_request(req),

@@ -8,6 +8,7 @@ pub type BoxedResponse = Response<BoxBody<Bytes, io::Error>>;
 
 #[derive(Debug)]
 pub struct RequestDetails {
+    pub method: hyper::http::Method,
     pub path: String,
     pub content_encoding: Option<Vec<String>>,
     pub range: Option<String>,
