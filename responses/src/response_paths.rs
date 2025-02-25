@@ -6,24 +6,12 @@ use std::fs;
 use std::path;
 use std::path::{Path, PathBuf};
 
+use crate::available_encodings::get_encoded_ext;
 use crate::content_type::get_content_type;
 use crate::type_flyweight::ServiceRequirements;
 
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
-
-#[derive(Debug)]
-pub struct PathDetails {
-    pub path: PathBuf,
-    pub status_code: StatusCode,
-    pub content_encoding: Option<String>,
-}
-
-#[derive(Debug)]
-pub struct ReqDetails {
-    pub content_type: String,
-    pub path_details: Vec<(PathBuf, u64)>,
-}
 
 fn get_path_from_request_url(req: &Request<IncomingBody>) -> PathBuf {
     let uri_path = req.uri().path();
@@ -36,7 +24,10 @@ fn get_path_from_request_url(req: &Request<IncomingBody>) -> PathBuf {
     PathBuf::from(stripped)
 }
 
-fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
+fn get_encodings(
+    service_requirements: &ServiceRequirements,
+    req: &Request<IncomingBody>,
+) -> Vec<String> {
     let mut encodings = Vec::new();
 
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
@@ -50,7 +41,13 @@ fn get_encodings(req: &Request<IncomingBody>) -> Vec<String> {
     };
 
     for encoding in encoding_str.split(",") {
-        encodings.push(encoding.trim().to_string());
+        let trimmed = encoding.trim();
+        if service_requirements
+            .encodings
+            .encoding_is_available(trimmed)
+        {
+            encodings.push(trimmed.to_string());
+        }
     }
 
     encodings
@@ -92,71 +89,33 @@ fn push_fallback_paths(
     }
 }
 
+fn push_encoded_paths(
+    paths: &mut Vec<(PathBuf, Option<String>)>,
+    req_path: &Path,
+    encodings: &Vec<String>,
+) {
+    for encoding in encodings {
+        if let Some(ext) = get_encoded_ext(encoding) {
+            paths.push((req_path.join(ext), Some(ext.to_string())));
+        }
+    }
+}
+
 pub fn get_filepaths_from_request(
     service_requirements: &ServiceRequirements,
     req: &Request<IncomingBody>,
 ) -> Vec<(PathBuf, Option<String>)> {
     let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
 
-    let req_path = get_path_from_request_url(req);
-
-    // add fall_back urls
+    // 404 fallbacks
     push_fallback_paths(&mut paths, service_requirements);
 
-    let encodings = get_encodings(req);
+    // push source path
+    let req_path = get_path_from_request_url(req);
+    paths.push((req_path.clone(), None));
+
+    let encodings = get_encodings(service_requirements, req);
+    push_encoded_paths(&mut paths, &req_path, &encodings);
 
     return paths;
 }
-
-// let req_path = match get_path_from_request_url(&directory, req) {
-//     Some(p) => p,
-//     _ => return None,
-// };
-
-// let content_type = get_content_type(&req_path).to_string();
-// let encodings = get_encodings(req);
-
-// // try encoded paths first
-// for encoding in encodings {
-//     // if encoding not available skip
-//     if !available_encodings.encoding_is_available(&encoding) {
-//         continue;
-//     }
-
-//     let enc_from_ext = match get_encoded_ext(&encoding) {
-//         Some(ext) => ext,
-//         _ => continue,
-//     };
-
-//     let mut path_os_str = req_path.clone().into_os_string();
-//     path_os_str.push(enc_from_ext);
-
-//     let enc_path = path::PathBuf::from(path_os_str);
-
-//     paths.push(PathDetails {
-//         path: enc_path.clone(),
-//         content_encoding: Some(encoding),
-//         status_code: StatusCode::OK,
-//     });
-// }
-
-// // push unencoded filepath
-// paths.push(PathDetails {
-//     path: req_path,
-//     content_encoding: None,
-//     status_code: StatusCode::OK,
-// });
-
-// // push 404s to file to serve
-// for (filepath, encoding) in filepath_404s {
-//     paths.push(PathDetails {
-//         path: filepath.clone(),
-//         content_encoding: encoding.clone(),
-//         status_code: StatusCode::NOT_FOUND,
-//     });
-// }
-
-// Some(ReqDetails {
-//     content_type: content_type,
-//     path_details: paths,
-// })

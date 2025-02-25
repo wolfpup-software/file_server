@@ -39,7 +39,7 @@ impl AvailableEncodings {
     }
 }
 
-fn get_encoded_ext(encoding: &str) -> Option<&str> {
+pub fn get_encoded_ext(encoding: &str) -> Option<&str> {
     match encoding {
         "gzip" => Some(".gz"),
         "zstd" => Some(".zst"),
