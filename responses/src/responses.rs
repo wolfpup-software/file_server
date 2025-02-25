@@ -2,6 +2,7 @@ use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming as IncomingBody;
 use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE, RANGE};
 use hyper::http::{Request, Response};
+use hyper::Method;
 use hyper::StatusCode;
 use std::path::PathBuf;
 
@@ -15,68 +16,51 @@ use crate::type_flyweight::{BoxedResponse, RequestDetails, ServiceRequirements};
 pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
 pub const NOT_FOUND_404: &str = "404 not found";
 
-// pub async fn build_head_response(
-//     opt_req_details: Option<ReqDetails>,
-// ) -> Result<BoxedResponse, hyper::http::Error> {
-//     // this should include a 404 error response
-//     // happens with "directories" when no file is included
-//     if let Some(req_details) = opt_req_details {
-//         for path_detail in req_details.path_details {
-//             if let Some(res) =
-//                 build_head_response_from_filepath(path_detail, &req_details.content_type).await
-//             {
-//                 return res;
-//             }
-//         }
-//     };
-
-//     build_last_resort_response(StatusCode::NOT_FOUND, &NOT_FOUND_404)
-// }
-
-// pub async fn build_get_response(
-//     opt_req_details: Option<ReqDetails>,
-// ) -> Result<BoxedResponse, hyper::http::Error> {
-//     // this should include a 404 error response
-//     // happens with "directories" when no file is included
-//     if let Some(req_details) = opt_req_details {
-//         for path_detail in req_details.path_details {
-//             if let Some(res) =
-//                 build_get_response_from_filepath(path_detail, &req_details.content_type).await
-//             {
-//                 return res;
-//             }
-//         }
-//     };
-
-//     build_last_resort_response(StatusCode::NOT_FOUND, &NOT_FOUND_404)
-// }
-
-// pub async fn build_get_range_response(
-//     opt_req_details: Option<ReqDetails>,
-//     range_string: String,
-// ) -> Result<BoxedResponse, hyper::http::Error> {
-//     if let Some(req_details) = opt_req_details {
-//         for path_detail in req_details.path_details {
-//             if let Some(res) = build_get_range_response_from_filepath(
-//                 path_detail,
-//                 &req_details.content_type,
-//                 &range_string,
-//             )
-//             .await
-//             {
-//                 return res;
-//             }
-//         }
-//     };
-
-//     build_last_resort_response(StatusCode::RANGE_NOT_SATISFIABLE, &NOT_FOUND_416)
-// }
-
 pub fn build_response(
-    request: Request<IncomingBody>,
-    _service_requirements: ServiceRequirements,
+    req: Request<IncomingBody>,
+    service_requirements: ServiceRequirements,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    match req.method() {
+        &Method::HEAD => build_head_response(req, service_requirements),
+        &Method::GET => build_get_response(req, service_requirements),
+        _ => build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
+    }
+}
+
+fn build_head_response(
+    req: Request<IncomingBody>,
+    service_requirements: ServiceRequirements,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    // get path
+    // get path metadata
+
+    // if exists
+
+    // if director, modify path
+
+    // get files, (path, content type, size) ?
+
+    // is a file?
+    // get possible encodings
+    //
+    // add
+
+    // do the same thing to 404s
+    build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+}
+
+fn build_get_response(
+    req: Request<IncomingBody>,
+    service_requirements: ServiceRequirements,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+}
+
+fn build_range_response(
+    req: Request<IncomingBody>,
+    service_requirements: ServiceRequirements,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    build_last_resort_response(StatusCode::RANGE_NOT_SATISFIABLE, NOT_FOUND_404)
 }
 
 fn build_last_resort_response(

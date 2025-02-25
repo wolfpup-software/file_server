@@ -9,7 +9,6 @@ use std::pin::Pin;
     It should work with hyper responses across
     different libraries and dependencies.
 */
-
 use responses::{BoxedResponse, ServiceRequirements};
 
 pub struct Svc {
@@ -30,7 +29,6 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        // requires a clone.
         // cannot guarantee service_requirements isn't dropped
         let service_requirements = self.service_requirements.clone();
 

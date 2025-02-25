@@ -10,8 +10,8 @@ type FallbackFilepaths = Vec<(PathBuf, String, Option<String>)>;
 pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
-    pub content_encodings: Vec<String>,
-    pub filepath_404s: FallbackFilepaths,
+    pub content_encodings: Option<Vec<String>>,
+    pub filepath_404s: Option<FallbackFilepaths>,
 }
 
 impl Config {
@@ -47,13 +47,15 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        let updated_404s = match get_paths(parent_dir, config.filepath_404s) {
-            Ok(pb) => pb,
-            Err(e) => return Err(e.to_string()),
-        };
-
         config.directory = target_directory_abs;
-        config.filepath_404s = updated_404s;
+
+        if let Some(origin_404s) = config.filepath_404s {
+            let updated_404s = match get_paths(parent_dir, origin_404s) {
+                Ok(pb) => pb,
+                Err(e) => return Err(e.to_string()),
+            };
+            config.filepath_404s = Some(updated_404s);
+        }
 
         Ok(config)
     }

@@ -28,5 +28,5 @@ pub struct AvailableEncodings {
 pub struct ServiceRequirements {
     pub directory: PathBuf,
     pub encodings: AvailableEncodings,
-    pub filepath_404s: FallbackFilepaths,
+    pub filepath_404s: Option<FallbackFilepaths>,
 }
