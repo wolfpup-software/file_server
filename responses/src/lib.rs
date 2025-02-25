@@ -1,6 +1,5 @@
 mod available_encodings;
 mod content_type;
-mod request_details;
 mod response_paths;
 mod responses;
 mod service_requirements;

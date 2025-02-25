@@ -4,7 +4,7 @@ use std::path;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
-type FallbackFilepaths = Vec<(PathBuf, String, Option<String>)>;
+type FallbackFilepaths = Vec<(PathBuf, Option<String>)>;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -64,14 +64,14 @@ impl Config {
 fn get_paths(source_dir: &Path, filepaths: FallbackFilepaths) -> Result<FallbackFilepaths, String> {
     let mut updated_filepaths = Vec::new();
 
-    for (file_path, conent_type, encoding_type) in filepaths {
+    for (file_path, encoding_type) in filepaths {
         let target_path = source_dir.join(file_path);
         let target_path_abs = match path::absolute(target_path) {
             Ok(pb) => pb,
             Err(e) => return Err(e.to_string()),
         };
 
-        updated_filepaths.push((target_path_abs, conent_type, encoding_type));
+        updated_filepaths.push((target_path_abs, encoding_type));
     }
 
     Ok(updated_filepaths)

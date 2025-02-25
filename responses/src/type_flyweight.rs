@@ -14,7 +14,7 @@ pub struct RequestDetails {
     pub range: Option<String>,
 }
 
-type FallbackFilepaths = Vec<(PathBuf, String, Option<String>)>;
+type FallbackFilepaths = Vec<(PathBuf, Option<String>)>;
 
 #[derive(Clone, Debug)]
 pub struct AvailableEncodings {
