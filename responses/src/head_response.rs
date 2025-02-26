@@ -1,16 +1,19 @@
 use http_body_util::{BodyExt, Full};
 use hyper::header::{ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::Response;
+use hyper::StatusCode;
+use std::path::Path;
 use tokio::fs::File;
 
-use crate::response_paths::PathDetails;
 use crate::type_flyweight::BoxedResponse;
 
 pub async fn build_head_response_from_filepath(
-    path_details: PathDetails,
+    path_details: &Path,
     content_type: &str,
+    status_code: StatusCode,
+    content_encoding: &Option<String>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let file = match File::open(path_details.path).await {
+    let file = match File::open(path_details).await {
         Ok(f) => f,
         _ => return None,
     };
@@ -21,12 +24,12 @@ pub async fn build_head_response_from_filepath(
     };
 
     let mut builder = Response::builder()
-        .status(path_details.status_code)
+        .status(status_code)
         .header(CONTENT_TYPE, content_type)
         .header(ACCEPT_RANGES, "bytes")
         .header(CONTENT_LENGTH, metadata.len());
 
-    if let Some(enc) = path_details.content_encoding {
+    if let Some(enc) = content_encoding {
         builder = builder.header(CONTENT_ENCODING, enc);
     }
 

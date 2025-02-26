@@ -67,27 +67,27 @@ fn get_target_path_from_path(dir: &Path, target_path: &Path) -> Option<PathBuf> 
     None
 }
 
-fn push_fallback_paths(
-    paths: &mut Vec<(PathBuf, Option<String>)>,
-    service_requirements: &ServiceRequirements,
-) {
-    if let Some(filepath_404s) = &service_requirements.filepath_404s {
-        for (fallback_path, encoding) in filepath_404s {
-            let mut encdng = None;
-            if let Some(enc) = encoding {
-                if service_requirements.encodings.encoding_is_available(enc) {
-                    encdng = Some(enc.clone());
-                }
-            }
+// fn push_fallback_paths(
+//     paths: &mut Vec<(PathBuf, Option<String>)>,
+//     service_requirements: &ServiceRequirements,
+// ) {
+//     if let Some(filepath_404s) = &service_requirements.filepath_404s {
+//         for (fallback_path, encoding) in filepath_404s {
+//             let mut encdng = None;
+//             if let Some(enc) = encoding {
+//                 if service_requirements.encodings.encoding_is_available(enc) {
+//                     encdng = Some(enc.clone());
+//                 }
+//             }
 
-            let target_path =
-                get_target_path_from_path(&service_requirements.directory, &fallback_path);
-            if let Some(target_path) = target_path {
-                paths.push((fallback_path.clone(), encdng));
-            }
-        }
-    }
-}
+//             let target_path =
+//                 get_target_path_from_path(&service_requirements.directory, &fallback_path);
+//             if let Some(target_path) = target_path {
+//                 paths.push((fallback_path.clone(), encdng));
+//             }
+//         }
+//     }
+// }
 
 fn push_encoded_paths(
     paths: &mut Vec<(PathBuf, Option<String>)>,
@@ -101,21 +101,19 @@ fn push_encoded_paths(
     }
 }
 
-pub fn get_filepaths_from_request(
+pub fn get_filepaths_and_content_type_from_request(
     service_requirements: &ServiceRequirements,
     req: &Request<IncomingBody>,
-) -> Vec<(PathBuf, Option<String>)> {
+) -> (String, Vec<(PathBuf, Option<String>)>) {
     let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
-
-    // 404 fallbacks
-    push_fallback_paths(&mut paths, service_requirements);
 
     // push source path
     let req_path = get_path_from_request_url(req);
+    let content_type = get_content_type(&req_path);
     paths.push((req_path.clone(), None));
 
     let encodings = get_encodings(service_requirements, req);
     push_encoded_paths(&mut paths, &req_path, &encodings);
 
-    return paths;
+    (content_type.to_string(), paths)
 }

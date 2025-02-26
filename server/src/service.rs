@@ -32,6 +32,6 @@ impl Service<Request<IncomingBody>> for Svc {
         // cannot guarantee service_requirements isn't dropped
         let service_requirements = self.service_requirements.clone();
 
-        Box::pin(async move { responses::build_response(req, service_requirements) })
+        Box::pin(async move { responses::build_response(req, service_requirements).await })
     }
 }
