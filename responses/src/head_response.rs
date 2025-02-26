@@ -8,12 +8,12 @@ use tokio::fs::File;
 use crate::type_flyweight::BoxedResponse;
 
 pub async fn build_head_response_from_filepath(
-    path_details: &Path,
+    filepath: &Path,
     content_type: &str,
     status_code: StatusCode,
     content_encoding: &Option<String>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let file = match File::open(path_details).await {
+    let file = match File::open(filepath).await {
         Ok(f) => f,
         _ => return None,
     };

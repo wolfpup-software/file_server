@@ -15,6 +15,7 @@ use crate::type_flyweight::{BoxedResponse, RequestDetails, ServiceRequirements};
 
 pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
 pub const NOT_FOUND_404: &str = "404 not found";
+pub const METHOD_NOT_ALLOWED_405: &str = "405 method not allowed";
 
 pub async fn build_response(
     req: Request<IncomingBody>,
@@ -23,7 +24,7 @@ pub async fn build_response(
     match req.method() {
         &Method::HEAD => build_head_response(req, service_requirements).await,
         &Method::GET => build_get_response(req, service_requirements).await,
-        _ => build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
+        _ => build_last_resort_response(StatusCode::METHOD_NOT_ALLOWED, METHOD_NOT_ALLOWED_405),
     }
 }
 
@@ -42,21 +43,7 @@ async fn build_head_response(
             return res;
         }
     }
-    // get path
-    // get path metadata
 
-    // if exists
-
-    // if director, modify path
-
-    // get files, (path, content type, size) ?
-
-    // is a file?
-    // get possible encodings
-    //
-    // add
-
-    // do the same thing to 404s
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 
