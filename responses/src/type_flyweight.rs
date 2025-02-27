@@ -6,16 +6,6 @@ use tokio::io;
 
 pub type BoxedResponse = Response<BoxBody<Bytes, io::Error>>;
 
-#[derive(Debug)]
-pub struct RequestDetails {
-    pub method: hyper::http::Method,
-    pub path: String,
-    pub content_encoding: Option<Vec<String>>,
-    pub range: Option<String>,
-}
-
-type FallbackFilepaths = Vec<(PathBuf, Option<String>)>;
-
 #[derive(Clone, Debug)]
 pub struct AvailableEncodings {
     pub gzip: bool,
@@ -28,5 +18,5 @@ pub struct AvailableEncodings {
 pub struct ServiceRequirements {
     pub directory: PathBuf,
     pub encodings: AvailableEncodings,
-    pub filepath_404s: Option<FallbackFilepaths>,
+    pub filepath_404: Option<PathBuf>,
 }

@@ -8,10 +8,10 @@ use std::path::PathBuf;
 
 use crate::content_type::HTML;
 // use crate::get_range_response::build_get_range_response_from_filepath;
-// use crate::get_response::build_get_response_from_filepath;
+use crate::get_response::build_get_response_from_filepath;
 use crate::head_response::build_head_response_from_filepath;
 use crate::response_paths::get_filepaths_and_content_type_from_request;
-use crate::type_flyweight::{BoxedResponse, RequestDetails, ServiceRequirements};
+use crate::type_flyweight::{BoxedResponse, ServiceRequirements};
 
 pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
 pub const NOT_FOUND_404: &str = "404 not found";
@@ -51,6 +51,20 @@ async fn build_get_response(
     req: Request<IncomingBody>,
     service_requirements: ServiceRequirements,
 ) -> Result<BoxedResponse, hyper::http::Error> {
+    let (content_type, filepaths) =
+        get_filepaths_and_content_type_from_request(&service_requirements, &req);
+
+    // see if it's a range request
+
+    for (filepath, encoding) in filepaths {
+        if let Some(res) =
+            build_get_response_from_filepath(&filepath, &content_type, StatusCode::OK, &encoding)
+                .await
+        {
+            return res;
+        }
+    }
+
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 

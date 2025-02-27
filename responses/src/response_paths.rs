@@ -13,7 +13,7 @@ use crate::type_flyweight::ServiceRequirements;
 const FWD_SLASH: &str = "/";
 const INDEX: &str = "index.html";
 
-fn get_path_from_request_url(req: &Request<IncomingBody>) -> PathBuf {
+fn get_path_from_request_url(req: &Request<IncomingBody>, directory: &PathBuf) -> PathBuf {
     let uri_path = req.uri().path();
 
     let stripped = match uri_path.strip_prefix(FWD_SLASH) {
@@ -21,7 +21,7 @@ fn get_path_from_request_url(req: &Request<IncomingBody>) -> PathBuf {
         _ => uri_path,
     };
 
-    PathBuf::from(stripped)
+    directory.join(stripped)
 }
 
 fn get_encodings(
@@ -67,28 +67,6 @@ fn get_target_path_from_path(dir: &Path, target_path: &Path) -> Option<PathBuf> 
     None
 }
 
-// fn push_fallback_paths(
-//     paths: &mut Vec<(PathBuf, Option<String>)>,
-//     service_requirements: &ServiceRequirements,
-// ) {
-//     if let Some(filepath_404s) = &service_requirements.filepath_404s {
-//         for (fallback_path, encoding) in filepath_404s {
-//             let mut encdng = None;
-//             if let Some(enc) = encoding {
-//                 if service_requirements.encodings.encoding_is_available(enc) {
-//                     encdng = Some(enc.clone());
-//                 }
-//             }
-
-//             let target_path =
-//                 get_target_path_from_path(&service_requirements.directory, &fallback_path);
-//             if let Some(target_path) = target_path {
-//                 paths.push((fallback_path.clone(), encdng));
-//             }
-//         }
-//     }
-// }
-
 fn push_encoded_paths(
     paths: &mut Vec<(PathBuf, Option<String>)>,
     req_path: &Path,
@@ -108,7 +86,7 @@ pub fn get_filepaths_and_content_type_from_request(
     let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
 
     // push source path
-    let req_path = get_path_from_request_url(req);
+    let req_path = get_path_from_request_url(req, &service_requirements.directory);
     let content_type = get_content_type(&req_path);
     paths.push((req_path.clone(), None));
 

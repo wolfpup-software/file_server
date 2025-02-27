@@ -3,28 +3,35 @@ use http_body_util::{BodyExt, StreamBody};
 use hyper::body::Frame;
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::Response;
+use hyper::StatusCode;
+use std::path::Path;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-use crate::response_paths::PathDetails;
 use crate::type_flyweight::BoxedResponse;
 
 pub async fn build_get_response_from_filepath(
-    path_details: PathDetails,
+    filepath: &Path,
     content_type: &str,
+    status_code: StatusCode,
+    content_encoding: &Option<String>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    if let Ok(file) = File::open(path_details.path).await {
-        let metadata = match file.metadata().await {
-            Ok(m) => m,
-            _ => return None,
-        };
+    let metadata = match tokio::fs::metadata(filepath).await {
+        Ok(m) => m,
+        _ => return None,
+    };
 
+    // if is_dir
+    //
+    // update path and directory
+
+    if let Ok(file) = File::open(filepath).await {
         let mut builder = Response::builder()
-            .status(path_details.status_code)
+            .status(status_code)
             .header(CONTENT_TYPE, content_type)
             .header(CONTENT_LENGTH, metadata.len());
 
-        if let Some(enc) = path_details.content_encoding {
+        if let Some(enc) = content_encoding {
             builder = builder.header(CONTENT_ENCODING, enc);
         }
 

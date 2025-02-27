@@ -6,6 +6,6 @@ pub fn get_service_requirements(config: &Config) -> ServiceRequirements {
     ServiceRequirements {
         directory: config.directory.clone(),
         encodings: AvailableEncodings::new(&config.content_encodings),
-        filepath_404s: config.filepath_404s.clone(),
+        filepath_404: config.filepath_404.clone(),
     }
 }

@@ -4,14 +4,12 @@ use std::path;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
-type FallbackFilepaths = Vec<(PathBuf, Option<String>)>;
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
     pub content_encodings: Option<Vec<String>>,
-    pub filepath_404s: Option<FallbackFilepaths>,
+    pub filepath_404: Option<PathBuf>,
 }
 
 impl Config {
@@ -49,30 +47,28 @@ impl Config {
 
         config.directory = target_directory_abs;
 
-        if let Some(origin_404s) = config.filepath_404s {
-            let updated_404s = match get_paths(parent_dir, origin_404s) {
-                Ok(pb) => pb,
+        if let Some(origin_404s) = config.filepath_404 {
+            config.filepath_404 = match get_path_relative_to_origin(parent_dir, &origin_404s) {
+                Ok(pb) => Some(pb),
                 Err(e) => return Err(e.to_string()),
             };
-            config.filepath_404s = Some(updated_404s);
         }
 
         Ok(config)
     }
 }
 
-fn get_paths(source_dir: &Path, filepaths: FallbackFilepaths) -> Result<FallbackFilepaths, String> {
-    let mut updated_filepaths = Vec::new();
+// remove encoding?
+fn get_path_relative_to_origin(source_dir: &Path, filepath: &PathBuf) -> Result<PathBuf, String> {
+    let target_path = source_dir.join(filepath);
+    let target_path_abs = match path::absolute(target_path) {
+        Ok(pb) => pb,
+        Err(e) => return Err(e.to_string()),
+    };
 
-    for (file_path, encoding_type) in filepaths {
-        let target_path = source_dir.join(file_path);
-        let target_path_abs = match path::absolute(target_path) {
-            Ok(pb) => pb,
-            Err(e) => return Err(e.to_string()),
-        };
-
-        updated_filepaths.push((target_path_abs, encoding_type));
+    if target_path_abs.starts_with(source_dir) {
+        return Ok(target_path_abs);
     }
 
-    Ok(updated_filepaths)
+    Err("filepath_404 does not reside in source_dir".to_string())
 }
