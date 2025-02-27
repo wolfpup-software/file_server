@@ -1,7 +1,5 @@
 mod service;
 
-use responses::get_service_requirements;
-
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use std::env;
@@ -20,12 +18,16 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    let listener = match TcpListener::bind(&config.host_and_port).await {
+    let listener = match TcpListener::bind(config.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
 
-    let service = service::Svc::new(&config.directory, &config.encodings);
+    let service = service::Svc::new(
+        config.directory,
+        config.content_encodings,
+        config.filepath_404,
+    );
 
     loop {
         let (stream, _remote_address) = match listener.accept().await {

@@ -1,7 +1,7 @@
 use crate::type_flyweight::AvailableEncodings;
 
 impl AvailableEncodings {
-    pub fn new(potential_encodings: &Option<Vec<String>>) -> AvailableEncodings {
+    pub fn new(potential_encodings: Option<Vec<String>>) -> AvailableEncodings {
         let mut av_enc = AvailableEncodings {
             gzip: false,
             deflate: false,
@@ -16,7 +16,7 @@ impl AvailableEncodings {
         av_enc
     }
 
-    pub fn update(&mut self, potential_encodings: &Vec<String>) {
+    pub fn update(&mut self, potential_encodings: Vec<String>) {
         for encoding in potential_encodings {
             match encoding.as_str() {
                 "gzip" => self.gzip = true,

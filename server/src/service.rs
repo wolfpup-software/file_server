@@ -2,6 +2,7 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::service::Service;
 use hyper::Request;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 
 /*
@@ -9,19 +10,24 @@ use std::pin::Pin;
     It should work with hyper responses across
     different libraries and dependencies.
 */
-use responses::{BoxedResponse, ServiceRequirements};
+use responses::BoxedResponse;
 
+#[derive(Clone, Debug)]
 pub struct Svc {
     directory: PathBuf,
-    encodings: Option<Vec<String>>,
+    content_encodings: Option<Vec<String>>,
     fallback_404: Option<PathBuf>,
 }
 
 impl Svc {
-    pub fn new(directory: PathBuf, encodings: Option<Vec<String>>, fallback_404: PathBuf) -> Svc {
+    pub fn new(
+        directory: PathBuf,
+        content_encodings: Option<Vec<String>>,
+        fallback_404: Option<PathBuf>,
+    ) -> Svc {
         Svc {
             directory: directory,
-            encodings: encoding,
+            content_encodings: content_encodings,
             fallback_404: fallback_404,
         }
     }
@@ -36,11 +42,11 @@ impl Service<Request<IncomingBody>> for Svc {
         // cannot guarantee service_requirements isn't dropped
 
         let directory = self.directory.clone();
-        let encodings = self.encodings.clone();
-        let fallback_404 = self.fallback_404().clone();
+        let content_encodings = self.content_encodings.clone();
+        let fallback_404 = self.fallback_404.clone();
 
-        Box::pin(
-            async move { responses::build_response(req, directory, encodings, fallback_404).await },
-        )
+        Box::pin(async move {
+            responses::build_response(req, directory, content_encodings, fallback_404).await
+        })
     }
 }

@@ -7,37 +7,45 @@ use hyper::StatusCode;
 use std::path::PathBuf;
 
 use crate::content_type::HTML;
+use crate::type_flyweight::AvailableEncodings;
 // use crate::get_range_response::build_get_range_response_from_filepath;
 use crate::get_response::build_get_response_from_filepath;
 use crate::head_response::build_head_response_from_filepath;
 use crate::response_paths::get_filepaths_and_content_type_from_request;
-use crate::type_flyweight::{BoxedResponse, ServiceRequirements};
+use crate::type_flyweight::BoxedResponse;
 
 pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
 pub const NOT_FOUND_404: &str = "404 not found";
 pub const METHOD_NOT_ALLOWED_405: &str = "405 method not allowed";
 
+type params = (PathBuf, Option<Vec<String>>, Option<PathBuf>);
+
 pub async fn build_response(
     req: Request<IncomingBody>,
     directory: PathBuf,
-    encodings: Option<Vec<String>>,
-    fallback_404: PathBuf,
+    content_encodings: Option<Vec<String>>,
+    fallback_404: Option<PathBuf>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     // get encodings
+    let available_encodings = AvailableEncodings::new(content_encodings);
 
     match req.method() {
-        &Method::HEAD => build_head_response(req, service_requirements).await,
-        &Method::GET => build_get_response(req, service_requirements).await,
+        &Method::HEAD => {
+            build_head_response(req, directory, available_encodings, fallback_404).await
+        }
+        &Method::GET => build_get_response(req, directory, available_encodings, fallback_404).await,
         _ => build_last_resort_response(StatusCode::METHOD_NOT_ALLOWED, METHOD_NOT_ALLOWED_405),
     }
 }
 
 async fn build_head_response(
     req: Request<IncomingBody>,
-    service_requirements: ServiceRequirements,
+    directory: PathBuf,
+    encodings: AvailableEncodings,
+    fallback_404: Option<PathBuf>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     let (content_type, filepaths) =
-        get_filepaths_and_content_type_from_request(&service_requirements, &req);
+        get_filepaths_and_content_type_from_request(&req, &directory, &encodings);
 
     for (filepath, encoding) in filepaths {
         if let Some(res) =
@@ -53,10 +61,12 @@ async fn build_head_response(
 
 async fn build_get_response(
     req: Request<IncomingBody>,
-    service_requirements: ServiceRequirements,
+    directory: PathBuf,
+    encodings: AvailableEncodings,
+    fallback_404: Option<PathBuf>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     let (content_type, filepaths) =
-        get_filepaths_and_content_type_from_request(&service_requirements, &req);
+        get_filepaths_and_content_type_from_request(&req, &directory, &encodings);
 
     // see if it's a range request
 
@@ -72,12 +82,11 @@ async fn build_get_response(
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 
-async fn build_range_response(
-    req: Request<IncomingBody>,
-    service_requirements: ServiceRequirements,
-) -> Result<BoxedResponse, hyper::http::Error> {
-    build_last_resort_response(StatusCode::RANGE_NOT_SATISFIABLE, NOT_FOUND_404)
-}
+// async fn build_range_response(
+//     req: Request<IncomingBody>,
+// ) -> Result<BoxedResponse, hyper::http::Error> {
+//     build_last_resort_response(StatusCode::RANGE_NOT_SATISFIABLE, NOT_FOUND_404)
+// }
 
 fn build_last_resort_response(
     status_code: StatusCode,

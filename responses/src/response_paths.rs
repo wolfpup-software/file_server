@@ -6,17 +6,15 @@ use std::fs;
 use std::path;
 use std::path::{Path, PathBuf};
 
+use crate::type_flyweight::AvailableEncodings;
+
 use crate::available_encodings::get_encoded_ext;
 use crate::content_type::get_content_type;
-use crate::type_flyweight::ServiceRequirements;
-
-const FWD_SLASH: &str = "/";
-const INDEX: &str = "index.html";
 
 fn get_path_from_request_url(req: &Request<IncomingBody>, directory: &PathBuf) -> PathBuf {
     let uri_path = req.uri().path();
 
-    let stripped = match uri_path.strip_prefix(FWD_SLASH) {
+    let stripped = match uri_path.strip_prefix("/") {
         Some(p) => p,
         _ => uri_path,
     };
@@ -25,8 +23,8 @@ fn get_path_from_request_url(req: &Request<IncomingBody>, directory: &PathBuf) -
 }
 
 fn get_encodings(
-    service_requirements: &ServiceRequirements,
     req: &Request<IncomingBody>,
+    available_encodings: &AvailableEncodings,
 ) -> Vec<String> {
     let mut encodings = Vec::new();
 
@@ -42,10 +40,7 @@ fn get_encodings(
 
     for encoding in encoding_str.split(",") {
         let trimmed = encoding.trim();
-        if service_requirements
-            .encodings
-            .encoding_is_available(trimmed)
-        {
+        if available_encodings.encoding_is_available(trimmed) {
             encodings.push(trimmed.to_string());
         }
     }
@@ -80,17 +75,18 @@ fn push_encoded_paths(
 }
 
 pub fn get_filepaths_and_content_type_from_request(
-    service_requirements: &ServiceRequirements,
     req: &Request<IncomingBody>,
+    directory: &PathBuf,
+    available_encodings: &AvailableEncodings,
 ) -> (String, Vec<(PathBuf, Option<String>)>) {
     let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
 
     // push source path
-    let req_path = get_path_from_request_url(req, &service_requirements.directory);
+    let req_path = get_path_from_request_url(req, directory);
     let content_type = get_content_type(&req_path);
     paths.push((req_path.clone(), None));
 
-    let encodings = get_encodings(service_requirements, req);
+    let encodings = get_encodings(req, available_encodings);
     push_encoded_paths(&mut paths, &req_path, &encodings);
 
     (content_type.to_string(), paths)
