@@ -1,6 +1,6 @@
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming as IncomingBody;
-use hyper::header::{HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE, RANGE};
+use hyper::header::{HeaderValue, CONTENT_TYPE, RANGE};
 use hyper::http::{Request, Response};
 use hyper::Method;
 use hyper::StatusCode;
@@ -18,8 +18,6 @@ pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
 pub const NOT_FOUND_404: &str = "404 not found";
 pub const METHOD_NOT_ALLOWED_405: &str = "405 method not allowed";
 
-type params = (PathBuf, Option<Vec<String>>, Option<PathBuf>);
-
 pub async fn build_response(
     req: Request<IncomingBody>,
     directory: PathBuf,
@@ -27,13 +25,13 @@ pub async fn build_response(
     fallback_404: Option<PathBuf>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     // get encodings
-    let available_encodings = AvailableEncodings::new(content_encodings);
+    let encodings = AvailableEncodings::new(content_encodings);
 
     match req.method() {
         &Method::HEAD => {
-            build_head_response(req, directory, available_encodings, fallback_404).await
+            build_head_response(req, directory, encodings, fallback_404).await
         }
-        &Method::GET => build_get_response(req, directory, available_encodings, fallback_404).await,
+        &Method::GET => build_get_response(req, directory, encodings, fallback_404).await,
         _ => build_last_resort_response(StatusCode::METHOD_NOT_ALLOWED, METHOD_NOT_ALLOWED_405),
     }
 }

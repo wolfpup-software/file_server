@@ -21,10 +21,6 @@ pub async fn build_get_response_from_filepath(
         _ => return None,
     };
 
-    // if is_dir
-    //
-    // update path and directory
-
     if let Ok(file) = File::open(filepath).await {
         let mut builder = Response::builder()
             .status(status_code)

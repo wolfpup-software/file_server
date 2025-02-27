@@ -1,8 +1,6 @@
 use hyper::body::Incoming as IncomingBody;
 use hyper::header::ACCEPT_ENCODING;
 use hyper::http::Request;
-use hyper::StatusCode;
-use std::fs;
 use std::path;
 use std::path::{Path, PathBuf};
 
@@ -11,15 +9,13 @@ use crate::type_flyweight::AvailableEncodings;
 use crate::available_encodings::get_encoded_ext;
 use crate::content_type::get_content_type;
 
-fn get_path_from_request_url(req: &Request<IncomingBody>, directory: &PathBuf) -> PathBuf {
+fn get_path_from_request_url(req: &Request<IncomingBody>) -> &str {
     let uri_path = req.uri().path();
 
-    let stripped = match uri_path.strip_prefix("/") {
+    match uri_path.strip_prefix("/") {
         Some(p) => p,
         _ => uri_path,
-    };
-
-    directory.join(stripped)
+    }
 }
 
 fn get_encodings(
@@ -48,7 +44,7 @@ fn get_encodings(
     encodings
 }
 
-fn get_target_path_from_path(dir: &Path, target_path: &Path) -> Option<PathBuf> {
+fn get_target_path_from_path(dir: &Path, target_path: &str) -> Option<PathBuf> {
     let target_path_abs = match path::absolute(dir.join(&target_path)) {
         Ok(pb) => pb,
         _ => return None,
@@ -82,12 +78,18 @@ pub fn get_filepaths_and_content_type_from_request(
     let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
 
     // push source path
-    let req_path = get_path_from_request_url(req, directory);
-    let content_type = get_content_type(&req_path);
-    paths.push((req_path.clone(), None));
+    let req_path_str = get_path_from_request_url(req);
 
+    let target_path = get_target_path_from_path(directory, req_path_str);
+    let content_type = get_content_type(&target_path);
     let encodings = get_encodings(req, available_encodings);
-    push_encoded_paths(&mut paths, &req_path, &encodings);
+
+    if let Some(tp) = &target_path {
+        paths.push((tp.clone(), None));
+
+        push_encoded_paths(&mut paths, &tp, &encodings);
+    }
+
 
     (content_type.to_string(), paths)
 }
