@@ -13,10 +13,3 @@ pub struct AvailableEncodings {
     pub br: bool,
     pub zstd: bool,
 }
-
-#[derive(Clone, Debug)]
-pub struct ServiceRequirements {
-    pub directory: PathBuf,
-    pub encodings: AvailableEncodings,
-    pub filepath_404: Option<PathBuf>,
-}

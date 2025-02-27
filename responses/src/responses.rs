@@ -19,8 +19,12 @@ pub const METHOD_NOT_ALLOWED_405: &str = "405 method not allowed";
 
 pub async fn build_response(
     req: Request<IncomingBody>,
-    service_requirements: ServiceRequirements,
+    directory: PathBuf,
+    encodings: Option<Vec<String>>,
+    fallback_404: PathBuf,
 ) -> Result<BoxedResponse, hyper::http::Error> {
+    // get encodings
+
     match req.method() {
         &Method::HEAD => build_head_response(req, service_requirements).await,
         &Method::GET => build_get_response(req, service_requirements).await,

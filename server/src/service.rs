@@ -12,13 +12,17 @@ use std::pin::Pin;
 use responses::{BoxedResponse, ServiceRequirements};
 
 pub struct Svc {
-    service_requirements: ServiceRequirements,
+    directory: PathBuf,
+    encodings: Option<Vec<String>>,
+    fallback_404: Option<PathBuf>,
 }
 
 impl Svc {
-    pub fn new(service_requirements: &ServiceRequirements) -> Svc {
+    pub fn new(directory: PathBuf, encodings: Option<Vec<String>>, fallback_404: PathBuf) -> Svc {
         Svc {
-            service_requirements: service_requirements.clone(),
+            directory: directory,
+            encodings: encoding,
+            fallback_404: fallback_404,
         }
     }
 }
@@ -30,8 +34,13 @@ impl Service<Request<IncomingBody>> for Svc {
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
         // cannot guarantee service_requirements isn't dropped
-        let service_requirements = self.service_requirements.clone();
 
-        Box::pin(async move { responses::build_response(req, service_requirements).await })
+        let directory = self.directory.clone();
+        let encodings = self.encodings.clone();
+        let fallback_404 = self.fallback_404().clone();
+
+        Box::pin(
+            async move { responses::build_response(req, directory, encodings, fallback_404).await },
+        )
     }
 }

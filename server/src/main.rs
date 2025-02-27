@@ -20,12 +20,12 @@ async fn main() {
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    let service_requirements = get_service_requirements(&config);
-
     let listener = match TcpListener::bind(&config.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
+
+    let service = service::Svc::new(&config.directory, &config.encodings);
 
     loop {
         let (stream, _remote_address) = match listener.accept().await {
@@ -34,13 +34,12 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-
-        let service = service::Svc::new(&service_requirements);
+        let svc = service.clone();
 
         tokio::task::spawn(async move {
             // log service errors here
             Builder::new(TokioExecutor::new())
-                .serve_connection(io, service)
+                .serve_connection(io, svc)
                 .await
         });
     }
