@@ -14,21 +14,17 @@ async fn main() {
         None => return println!("conf error: \nargs filepath missing from args"),
     };
 
-    let config = match config::Config::try_from(&config_path).await {
+    let conf = match config::Config::try_from(&config_path).await {
         Ok(conf) => conf,
         Err(e) => return println!("conf error:\n{}", e),
     };
 
-    let listener = match TcpListener::bind(config.host_and_port).await {
+    let listener = match TcpListener::bind(conf.host_and_port).await {
         Ok(lstnr) => lstnr,
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
 
-    let service = service::Svc::new(
-        config.directory,
-        config.content_encodings,
-        config.filepath_404,
-    );
+    let service = service::Svc::new(conf.directory, conf.content_encodings, conf.filepath_404);
 
     loop {
         let (stream, _remote_address) = match listener.accept().await {

@@ -58,7 +58,6 @@ impl Config {
     }
 }
 
-// remove encoding?
 fn get_path_relative_to_origin(source_dir: &Path, filepath: &PathBuf) -> Result<PathBuf, String> {
     let target_path = source_dir.join(filepath);
     let target_path_abs = match path::absolute(target_path) {

@@ -39,8 +39,6 @@ impl Service<Request<IncomingBody>> for Svc {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: Request<IncomingBody>) -> Self::Future {
-        // cannot guarantee service_requirements isn't dropped
-
         let directory = self.directory.clone();
         let content_encodings = self.content_encodings.clone();
         let fallback_404 = self.fallback_404.clone();
