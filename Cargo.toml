@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["config", "server", "responses"]
+members = ["server", "responses"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
