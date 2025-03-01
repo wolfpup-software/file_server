@@ -24,7 +24,7 @@ async fn main() {
         Err(e) => return println!("tcp listener error:\n{}", e),
     };
 
-    let service = service::Svc::new(conf.directory, conf.content_encodings, conf.filepath_404);
+    let svc = service::Svc::new(conf.directory, conf.content_encodings, conf.filepath_404);
 
     loop {
         let (stream, _remote_address) = match listener.accept().await {
@@ -33,7 +33,7 @@ async fn main() {
         };
 
         let io = TokioIo::new(stream);
-        let svc = service.clone();
+        let svc = svc.clone();
 
         tokio::task::spawn(async move {
             // log service errors here

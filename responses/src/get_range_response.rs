@@ -1,23 +1,66 @@
 use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
+use hyper::body::Incoming as IncomingBody;
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
-use hyper::http::{Response, StatusCode};
+use hyper::http::{Request, Response, StatusCode};
 use std::fs::Metadata;
 use std::io::SeekFrom;
+use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
-use crate::response_paths::PathDetails;
+use crate::last_resort_response::{build_last_resort_response, NOT_FOUND_404};
 use crate::type_flyweight::BoxedResponse;
-
 // Range: <unit>=<range-start>-
 // Range: <unit>=<range-start>-<range-end>
 // Range: <unit>=-<suffix-length>
 
 // multi range requests require an entire different strategy
 // Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
+
+pub async fn build_get_range_response(
+    req: Request<IncomingBody>,
+    directory: PathBuf,
+    content_encodings: Option<Vec<String>>,
+) -> Result<BoxedResponse, hyper::http::Error> {
+    // let file_to_read = match File::open(&path_details.path).await {
+    //     Ok(f) => f,
+    //     _ => return None,
+    // };
+
+    // let metadata = match file_to_read.metadata().await {
+    //     Ok(m) => m,
+    //     _ => return None,
+    // };
+
+    // let size = metadata.len() as usize;
+
+    // let ranges = match get_ranges(range_str, size) {
+    //     Some(rngs) => rngs,
+    //     _ => return None,
+    // };
+
+    // if 0 == ranges.len() {
+    //     return None;
+    // }
+
+    // // single range
+    // if 1 == ranges.len() {
+    //     // build response
+    //     return build_single_range_response(
+    //         file_to_read,
+    //         metadata,
+    //         path_details,
+    //         ranges,
+    //         content_type,
+    //     )
+    //     .await;
+    // }
+
+    build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+}
 
 // on any fail return nothing
 fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
@@ -137,52 +180,10 @@ fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> S
     "bytes ".to_string() + &start.to_string() + "-" + &end.to_string() + "/" + &size.to_string()
 }
 
-pub async fn build_get_range_response_from_filepath(
-    path_details: PathDetails,
-    content_type: &str,
-    range_str: &str,
-) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let file_to_read = match File::open(&path_details.path).await {
-        Ok(f) => f,
-        _ => return None,
-    };
-
-    let metadata = match file_to_read.metadata().await {
-        Ok(m) => m,
-        _ => return None,
-    };
-
-    let size = metadata.len() as usize;
-
-    let ranges = match get_ranges(range_str, size) {
-        Some(rngs) => rngs,
-        _ => return None,
-    };
-
-    if 0 == ranges.len() {
-        return None;
-    }
-
-    // single range
-    if 1 == ranges.len() {
-        // build response
-        return build_single_range_response(
-            file_to_read,
-            metadata,
-            path_details,
-            ranges,
-            content_type,
-        )
-        .await;
-    }
-
-    None
-}
-
 async fn build_single_range_response(
     mut file_to_read: File,
     metadata: Metadata,
-    path_details: PathDetails,
+    content_encoding: Option<String>,
     ranges: Vec<(usize, usize)>,
     content_type: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
@@ -217,7 +218,7 @@ async fn build_single_range_response(
         .header(CONTENT_RANGE, content_range_header)
         .header(CONTENT_LENGTH, buffer.len().to_string());
 
-    if let Some(enc) = path_details.content_encoding {
+    if let Some(enc) = content_encoding {
         builder = builder.header(CONTENT_ENCODING, enc);
     }
 
@@ -237,7 +238,7 @@ async fn build_single_range_response(
 async fn build_multipart_range_response(
     mut file_to_read: File,
     metadata: Metadata,
-    path_details: PathDetails,
+    content_encoding: Option<String>,
     ranges: Vec<(usize, usize)>,
     content_type: &str,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
@@ -301,7 +302,7 @@ async fn build_multipart_range_response(
         .status(StatusCode::PARTIAL_CONTENT)
         .header(CONTENT_TYPE, req_content_type);
 
-    if let Some(enc) = path_details.content_encoding {
+    if let Some(enc) = content_encoding {
         builder = builder.header(CONTENT_ENCODING, enc);
     }
 

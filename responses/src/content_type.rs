@@ -7,7 +7,7 @@ pub const TEXT: &str = "text/plain; charset=utf-8";
 pub fn get_content_type(target_path: &Option<PathBuf>) -> &str {
     let filepath = match target_path {
         Some(fp) => fp,
-        _ => return OCTET, 
+        _ => return OCTET,
     };
 
     let extension = match filepath.extension() {

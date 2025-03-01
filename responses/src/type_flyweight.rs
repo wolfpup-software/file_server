@@ -12,3 +12,5 @@ pub struct AvailableEncodings {
     pub br: bool,
     pub zstd: bool,
 }
+
+pub const NOT_FOUND_404: &str = "404 not found";

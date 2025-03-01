@@ -4,18 +4,31 @@ use hyper::http::Request;
 use std::path;
 use std::path::{Path, PathBuf};
 
+use crate::last_resort_response::build_last_resort_response;
 use crate::type_flyweight::AvailableEncodings;
 
 use crate::available_encodings::get_encoded_ext;
 use crate::content_type::get_content_type;
 
-fn get_path_from_request_url(req: &Request<IncomingBody>) -> &str {
+fn get_path_from_request_url(req: &Request<IncomingBody>, directory: &PathBuf) -> Option<PathBuf> {
     let uri_path = req.uri().path();
 
-    match uri_path.strip_prefix("/") {
+    let stripped = match uri_path.strip_prefix("/") {
         Some(p) => p,
         _ => uri_path,
+    };
+
+    let target_path_abs = match path::absolute(directory.join(&stripped)) {
+        Ok(pb) => pb,
+        _ => return None,
+    };
+
+    // confirm path resides in directory
+    if target_path_abs.starts_with(directory) {
+        return Some(target_path_abs);
     }
+
+    None
 }
 
 fn get_encodings(
@@ -70,26 +83,24 @@ fn push_encoded_paths(
     }
 }
 
-pub fn get_filepaths_and_content_type_from_request(
-    req: &Request<IncomingBody>,
-    directory: &PathBuf,
-    available_encodings: &AvailableEncodings,
-) -> (String, Vec<(PathBuf, Option<String>)>) {
-    let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
+// pub fn get_filepaths_and_content_type_from_request(
+//     req: &Request<IncomingBody>,
+//     directory: &PathBuf,
+//     available_encodings: &AvailableEncodings,
+// ) -> (String, Vec<(PathBuf, Option<String>)>) {
+//     let mut paths: Vec<(PathBuf, Option<String>)> = Vec::new();
 
-    // push source path
-    let req_path_str = get_path_from_request_url(req);
+//     // push source path
+//     let req_path_str = get_path_from_request_url(req);
 
-    let target_path = get_target_path_from_path(directory, req_path_str);
-    let content_type = get_content_type(&target_path);
-    let encodings = get_encodings(req, available_encodings);
+//     let target_path = get_target_path_from_path(directory, req_path_str);
+//     let content_type = get_content_type(&target_path);
+//     let encodings = get_encodings(req, available_encodings);
 
-    if let Some(tp) = &target_path {
-        paths.push((tp.clone(), None));
+//     if let Some(tp) = &target_path {
+//         push_encoded_paths(&mut paths, tp, &encodings);
+//         paths.push((tp.clone(), None));
+//     }
 
-        push_encoded_paths(&mut paths, &tp, &encodings);
-    }
-
-
-    (content_type.to_string(), paths)
-}
+//     (content_type.to_string(), paths)
+// }
