@@ -75,7 +75,7 @@ pub fn get_encodings(
         }
     }
 
-    encodings
+    Some(encodings)
 }
 
 fn get_target_path_from_path(dir: &Path, target_path: &str) -> Option<PathBuf> {

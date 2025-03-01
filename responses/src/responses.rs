@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use crate::content_type::HTML;
 use crate::get_response::build_get_response;
-use crate::head_response::build_head_response;
+use crate::head_response::get_head_response;
 use crate::last_resort_response::build_last_resort_response;
 use crate::type_flyweight::AvailableEncodings;
 
@@ -23,7 +23,7 @@ pub async fn build_response(
     fallback_404: Option<PathBuf>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
     match req.method() {
-        &Method::HEAD => build_head_response(req, directory, content_encodings).await,
+        &Method::HEAD => get_head_response(req, directory, content_encodings).await,
         &Method::GET => build_get_response(req, directory, content_encodings, fallback_404).await,
         _ => build_last_resort_response(StatusCode::METHOD_NOT_ALLOWED, METHOD_NOT_ALLOWED_405),
     }
