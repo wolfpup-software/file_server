@@ -7,16 +7,13 @@ use hyper::StatusCode;
 use std::path::PathBuf;
 
 use crate::content_type::HTML;
-use crate::type_flyweight::AvailableEncodings;
-// use crate::get_range_response::build_get_range_response_from_filepath;
 use crate::get_response::build_get_response;
 use crate::head_response::build_head_response;
 use crate::last_resort_response::build_last_resort_response;
+use crate::type_flyweight::AvailableEncodings;
 
 use crate::type_flyweight::BoxedResponse;
 
-pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
-pub const NOT_FOUND_404: &str = "404 not found";
 pub const METHOD_NOT_ALLOWED_405: &str = "405 method not allowed";
 
 pub async fn build_response(
