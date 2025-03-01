@@ -1,16 +1,11 @@
 use std::path::PathBuf;
 
 pub const HTML: &str = "text/html; charset=utf-8";
-pub const OCTET: &str = "application/octet-stream";
-pub const TEXT: &str = "text/plain; charset=utf-8";
+const OCTET: &str = "application/octet-stream";
+const TEXT: &str = "text/plain; charset=utf-8";
 
-pub fn get_content_type(target_path: &Option<PathBuf>) -> &str {
-    let filepath = match target_path {
-        Some(fp) => fp,
-        _ => return OCTET,
-    };
-
-    let extension = match filepath.extension() {
+pub fn get_content_type(target_path: &PathBuf) -> &str {
+    let extension = match target_path.extension() {
         Some(ext) => ext,
         _ => return OCTET,
     };

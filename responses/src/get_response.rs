@@ -13,6 +13,7 @@ use tokio_util::io::ReaderStream;
 
 use crate::content_type::HTML;
 use crate::last_resort_response::build_last_resort_response;
+use crate::response_paths::get_path_from_request_url;
 use crate::type_flyweight::BoxedResponse;
 
 pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
@@ -25,6 +26,11 @@ pub async fn build_get_response(
     content_encodings: Option<Vec<String>>,
     fallback_404: Option<PathBuf>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
+    let filepath = match get_path_from_request_url(&req, &directory).await {
+        Some(fp) => fp,
+        _ => return build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
+    };
+
     // let metadata = match tokio::fs::metadata(filepath).await {
     //     Ok(m) => m,
     //     _ => return None,

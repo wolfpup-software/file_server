@@ -12,7 +12,9 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 use crate::last_resort_response::{build_last_resort_response, NOT_FOUND_404};
+use crate::response_paths::get_path_from_request_url;
 use crate::type_flyweight::BoxedResponse;
+
 // Range: <unit>=<range-start>-
 // Range: <unit>=<range-start>-<range-end>
 // Range: <unit>=-<suffix-length>
@@ -235,82 +237,82 @@ async fn build_single_range_response(
 //
 // For now it seems not worth including.
 //
-async fn build_multipart_range_response(
-    mut file_to_read: File,
-    metadata: Metadata,
-    content_encoding: Option<String>,
-    ranges: Vec<(usize, usize)>,
-    content_type: &str,
-) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let boundary_core = "k1ng_0f_1nf1n1t3_5pac3";
-    let boundary = "--".to_string() + boundary_core;
+// async fn build_multipart_range_response(
+//     mut file_to_read: File,
+//     metadata: Metadata,
+//     content_encoding: Option<String>,
+//     ranges: Vec<(usize, usize)>,
+//     content_type: &str,
+// ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+//     let boundary_core = "k1ng_0f_1nf1n1t3_5pac3";
+//     let boundary = "--".to_string() + boundary_core;
 
-    // create a byte array
-    let mut big_buffer: Vec<u8> = Vec::new();
+//     // create a byte array
+//     let mut big_buffer: Vec<u8> = Vec::new();
 
-    for range in ranges {
-        let (start, end) = range;
+//     for range in ranges {
+//         let (start, end) = range;
 
-        let _cursor = match file_to_read
-            // this could be problematic for other systems that are not u64
-            .seek(SeekFrom::Start(start.clone() as u64))
-            .await
-        {
-            Ok(crsr) => crsr,
-            _ => return None,
-        };
+//         let _cursor = match file_to_read
+//             // this could be problematic for other systems that are not u64
+//             .seek(SeekFrom::Start(start.clone() as u64))
+//             .await
+//         {
+//             Ok(crsr) => crsr,
+//             _ => return None,
+//         };
 
-        let mut buffer: Vec<u8> = Vec::with_capacity(end - start + 1);
-        buffer.resize(end - start + 1, 0);
+//         let mut buffer: Vec<u8> = Vec::with_capacity(end - start + 1);
+//         buffer.resize(end - start + 1, 0);
 
-        // read file
-        if let Err(_e) = file_to_read.read_exact(&mut buffer).await {
-            return None;
-        };
+//         // read file
+//         if let Err(_e) = file_to_read.read_exact(&mut buffer).await {
+//             return None;
+//         };
 
-        // then add boundary
-        big_buffer.extend(boundary.as_bytes());
-        big_buffer.extend("\n".as_bytes());
+//         // then add boundary
+//         big_buffer.extend(boundary.as_bytes());
+//         big_buffer.extend("\n".as_bytes());
 
-        // then add headers
-        let multi_headers = CONTENT_TYPE.to_string()
-            + ": "
-            + content_type
-            + "\n"
-            // gotta add content encoding
-            + CONTENT_RANGE.as_str()
-            + ": bytes "
-            + &start.to_string()
-            + "-"
-            + &end.to_string()
-            + "/"
-            + &metadata.len().to_string()
-            + "\n\n";
-        big_buffer.extend(multi_headers.as_bytes());
-        big_buffer.extend(buffer);
-        big_buffer.extend("\n".as_bytes());
-    }
+//         // then add headers
+//         let multi_headers = CONTENT_TYPE.to_string()
+//             + ": "
+//             + content_type
+//             + "\n"
+//             // gotta add content encoding
+//             + CONTENT_RANGE.as_str()
+//             + ": bytes "
+//             + &start.to_string()
+//             + "-"
+//             + &end.to_string()
+//             + "/"
+//             + &metadata.len().to_string()
+//             + "\n\n";
+//         big_buffer.extend(multi_headers.as_bytes());
+//         big_buffer.extend(buffer);
+//         big_buffer.extend("\n".as_bytes());
+//     }
 
-    // add final boundary
-    big_buffer.extend(boundary.as_bytes());
-    big_buffer.extend("--".as_bytes());
+//     // add final boundary
+//     big_buffer.extend(boundary.as_bytes());
+//     big_buffer.extend("--".as_bytes());
 
-    // Now build a response
-    let req_content_type = "multipart/byteranges; boundary=".to_string() + boundary_core;
+//     // Now build a response
+//     let req_content_type = "multipart/byteranges; boundary=".to_string() + boundary_core;
 
-    let mut builder = Response::builder()
-        .status(StatusCode::PARTIAL_CONTENT)
-        .header(CONTENT_TYPE, req_content_type);
+//     let mut builder = Response::builder()
+//         .status(StatusCode::PARTIAL_CONTENT)
+//         .header(CONTENT_TYPE, req_content_type);
 
-    if let Some(enc) = content_encoding {
-        builder = builder.header(CONTENT_ENCODING, enc);
-    }
+//     if let Some(enc) = content_encoding {
+//         builder = builder.header(CONTENT_ENCODING, enc);
+//     }
 
-    return Some(
-        builder.header(CONTENT_LENGTH, big_buffer.len()).body(
-            Full::new(bytes::Bytes::from(big_buffer))
-                .map_err(|e| match e {})
-                .boxed(),
-        ),
-    );
-}
+//     return Some(
+//         builder.header(CONTENT_LENGTH, big_buffer.len()).body(
+//             Full::new(bytes::Bytes::from(big_buffer))
+//                 .map_err(|e| match e {})
+//                 .boxed(),
+//         ),
+//     );
+// }

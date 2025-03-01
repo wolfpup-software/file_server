@@ -1,4 +1,10 @@
-use crate::type_flyweight::AvailableEncodings;
+#[derive(Clone, Debug)]
+pub struct AvailableEncodings {
+    pub gzip: bool,
+    pub deflate: bool,
+    pub br: bool,
+    pub zstd: bool,
+}
 
 impl AvailableEncodings {
     pub fn new(potential_encodings: Option<Vec<String>>) -> AvailableEncodings {
