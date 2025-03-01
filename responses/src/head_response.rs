@@ -14,7 +14,7 @@ use crate::last_resort_response::{build_last_resort_response, NOT_FOUND_404};
 use crate::response_paths::{get_encodings, get_path_from_request_url};
 use crate::type_flyweight::BoxedResponse;
 
-pub async fn get_head_response(
+pub async fn build_head_response(
     req: Request<IncomingBody>,
     directory: PathBuf,
     content_encodings: Option<Vec<String>>,
@@ -32,14 +32,14 @@ pub async fn get_head_response(
     };
 
     // origin target
-    if let Some(res) = build_head_response(&filepath, content_type, None).await {
+    if let Some(res) = compose_head_response(&filepath, content_type, None).await {
         return res;
     }
 
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 
-async fn build_head_response(
+async fn compose_head_response(
     filepath: &PathBuf,
     content_type: &str,
     content_encoding: Option<String>,
