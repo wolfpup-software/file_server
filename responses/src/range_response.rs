@@ -2,7 +2,9 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
 use hyper::body::Incoming as IncomingBody;
-use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
+use hyper::header::{
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
+};
 use hyper::http::{Request, Response, StatusCode};
 use std::fs::Metadata;
 use std::io::SeekFrom;
@@ -28,7 +30,11 @@ pub async fn build_range_response(
     directory: &PathBuf,
     content_encodings: &Option<Vec<String>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    // does it have the range header?
+    // bail immediately if no range header
+    let range_header = match get_range_header(req) {
+        Some(rh) => rh,
+        _ => return None,
+    };
 
     let filepath = match get_path_from_request_url(&req, &directory).await {
         Some(fp) => fp,
@@ -81,6 +87,18 @@ pub async fn build_range_response(
         StatusCode::NOT_FOUND,
         NOT_FOUND_404,
     ))
+}
+
+fn get_range_header(req: &Request<IncomingBody>) -> Option<String> {
+    let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
+        Some(enc) => enc,
+        _ => return None,
+    };
+
+    match accept_encoding_header.to_str() {
+        Ok(s) => Some(s.to_string()),
+        _ => None,
+    }
 }
 
 // on any fail return nothing
