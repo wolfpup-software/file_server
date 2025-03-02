@@ -26,9 +26,11 @@ pub async fn build_head_response(
 
     let content_type = get_content_type(&filepath);
 
-    // let encodings
-    if let Some(encodings) = get_encodings(&req, &filepath, content_encodings) {
-        // try and read encoding files
+    // encodings
+    if let Some(res) =
+        compose_enc_head_response(req, &filepath, content_type, content_encodings).await
+    {
+        return res;
     };
 
     // origin target
@@ -37,6 +39,26 @@ pub async fn build_head_response(
     }
 
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+}
+
+async fn compose_enc_head_response(
+    req: Request<IncomingBody>,
+    filepath: &PathBuf,
+    content_type: &str,
+    content_encodings: Option<Vec<String>>,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    let encodings = match get_encodings(&req, &filepath, content_encodings) {
+        Some(encdngs) => encdngs,
+        _ => return None,
+    };
+
+    for (enc_path, enc) in encodings {
+        if let Some(res) = compose_head_response(&enc_path, content_type, Some(enc)).await {
+            return Some(res);
+        }
+    }
+
+    None
 }
 
 async fn compose_head_response(

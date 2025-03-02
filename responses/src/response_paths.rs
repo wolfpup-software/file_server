@@ -53,11 +53,14 @@ pub async fn get_path_from_request_url(
     None
 }
 
+// for 404s
+// get 404 path or encoded path
+
 pub fn get_encodings(
     req: &Request<IncomingBody>,
     filepath: &PathBuf,
     content_encodings: Option<Vec<String>>,
-) -> Option<Vec<PathBuf>> {
+) -> Option<Vec<(PathBuf, String)>> {
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
         Some(enc) => enc,
         _ => return None,
@@ -75,7 +78,7 @@ pub fn get_encodings(
         if available_encodings.encoding_is_available(trimmed) {
             // get path with extension
             if let Some(enc_path) = add_extension(filepath, trimmed) {
-                encodings.push(enc_path);
+                encodings.push((enc_path, trimmed.to_string()));
             }
         }
     }
