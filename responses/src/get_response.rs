@@ -36,29 +36,6 @@ pub async fn build_get_response(
 
     let content_type = get_content_type(&filepath);
 
-    // let metadata = match tokio::fs::metadata(filepath).await {
-    //     Ok(m) => m,
-    //     _ => return None,
-    // };
-
-    // if let Ok(file) = File::open(filepath).await {
-    //     let mut builder = Response::builder()
-    //         .status(status_code)
-    //         .header(CONTENT_TYPE, content_type)
-    //         .header(CONTENT_LENGTH, metadata.len());
-
-    //     if let Some(enc) = content_encoding {
-    //         builder = builder.header(CONTENT_ENCODING, enc);
-    //     }
-
-    //     // https://github.com/hyperium/hyper/blob/master/examples/send_file.rs
-    //     let reader_stream = ReaderStream::new(file);
-    //     let stream_body = StreamBody::new(reader_stream.map_ok(Frame::data));
-    //     let boxed_body = stream_body.boxed();
-
-    //     return Some(builder.body(boxed_body));
-    // }
-
     // origin target
     if let Some(res) = compose_get_response(&filepath, content_type, None).await {
         return res;
@@ -76,6 +53,7 @@ async fn compose_get_response(
         Ok(m) => m,
         _ => return None,
     };
+
     let metadata = match file.metadata().await {
         Ok(m) => m,
         _ => return None,

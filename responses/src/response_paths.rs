@@ -5,6 +5,8 @@ use std::path;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
+use std::ffi::OsStr;
+
 use crate::available_encodings::{get_encoded_ext, AvailableEncodings};
 use crate::content_type::get_content_type;
 use crate::last_resort_response::build_last_resort_response;
@@ -53,8 +55,9 @@ pub async fn get_path_from_request_url(
 
 pub fn get_encodings(
     req: &Request<IncomingBody>,
+    filepath: &PathBuf,
     content_encodings: Option<Vec<String>>,
-) -> Option<Vec<String>> {
+) -> Option<Vec<PathBuf>> {
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
         Some(enc) => enc,
         _ => return None,
@@ -71,11 +74,33 @@ pub fn get_encodings(
         let trimmed = encoding.trim();
         if available_encodings.encoding_is_available(trimmed) {
             // get path with extension
-            encodings.push(trimmed.to_string());
+            if let Some(enc_path) = add_extension(filepath, trimmed) {
+                encodings.push(enc_path);
+            }
         }
     }
 
-    Some(encodings)
+    if 0 < encodings.len() {
+        return Some(encodings);
+    }
+
+    None
+}
+
+// nightly API replacement
+// https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension
+fn add_extension(filepath: &PathBuf, encoding: &str) -> Option<PathBuf> {
+    let enc_ext = match get_encoded_ext(encoding) {
+        Some(enc) => enc,
+        _ => return None,
+    };
+
+    let os_ext = OsStr::new(enc_ext);
+
+    let mut fp_with_ext = filepath.as_os_str().to_os_string();
+    fp_with_ext.push(os_ext);
+
+    Some(PathBuf::from(fp_with_ext))
 }
 
 fn get_target_path_from_path(dir: &Path, target_path: &str) -> Option<PathBuf> {

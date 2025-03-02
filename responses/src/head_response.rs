@@ -27,7 +27,7 @@ pub async fn build_head_response(
     let content_type = get_content_type(&filepath);
 
     // let encodings
-    if let Some(encodings) = get_encodings(&req, content_encodings) {
+    if let Some(encodings) = get_encodings(&req, &filepath, content_encodings) {
         // try and read encoding files
     };
 
