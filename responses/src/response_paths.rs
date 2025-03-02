@@ -55,7 +55,7 @@ pub async fn get_path_from_request_url(
 
 pub fn get_encodings(
     req: &Request<IncomingBody>,
-    content_encodings: Option<Vec<String>>,
+    content_encodings: &Option<Vec<String>>,
 ) -> Option<Vec<String>> {
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
         Some(enc) => enc,

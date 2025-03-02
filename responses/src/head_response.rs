@@ -22,9 +22,7 @@ pub async fn build_head_response(
     };
 
     let content_type = get_content_type(&filepath);
-    let encodings = get_encodings(&req, content_encodings);
-
-    // range response
+    let encodings = get_encodings(&req, &content_encodings);
 
     // encodings
     if let Some(res) = compose_enc_head_response(&filepath, content_type, encodings).await {

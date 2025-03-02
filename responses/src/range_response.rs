@@ -23,18 +23,25 @@ use crate::type_flyweight::BoxedResponse;
 // multi range requests require an entire different strategy
 // Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
 
-pub async fn build_get_range_response(
-    req: Request<IncomingBody>,
-    directory: PathBuf,
-    content_encodings: Option<Vec<String>>,
-) -> Result<BoxedResponse, hyper::http::Error> {
+pub async fn build_range_response(
+    req: &Request<IncomingBody>,
+    directory: &PathBuf,
+    content_encodings: &Option<Vec<String>>,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    // does it have the range header?
+
     let filepath = match get_path_from_request_url(&req, &directory).await {
         Some(fp) => fp,
-        _ => return build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
+        _ => {
+            return Some(build_last_resort_response(
+                StatusCode::NOT_FOUND,
+                NOT_FOUND_404,
+            ))
+        }
     };
 
     let content_type = get_content_type(&filepath);
-    let encodings = get_encodings(&req, content_encodings);
+    let encodings = get_encodings(&req, &content_encodings);
 
     // let file_to_read = match File::open(&path_details.path).await {
     //     Ok(f) => f,
@@ -70,7 +77,10 @@ pub async fn build_get_range_response(
     //     .await;
     // }
 
-    build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+    Some(build_last_resort_response(
+        StatusCode::NOT_FOUND,
+        NOT_FOUND_404,
+    ))
 }
 
 // on any fail return nothing
