@@ -11,8 +11,9 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
+use crate::content_type::get_content_type;
 use crate::last_resort_response::{build_last_resort_response, NOT_FOUND_404};
-use crate::response_paths::get_path_from_request_url;
+use crate::response_paths::{add_extension, get_encodings, get_path_from_request_url};
 use crate::type_flyweight::BoxedResponse;
 
 // Range: <unit>=<range-start>-
@@ -27,6 +28,14 @@ pub async fn build_get_range_response(
     directory: PathBuf,
     content_encodings: Option<Vec<String>>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
+    let filepath = match get_path_from_request_url(&req, &directory).await {
+        Some(fp) => fp,
+        _ => return build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
+    };
+
+    let content_type = get_content_type(&filepath);
+    let encodings = get_encodings(&req, content_encodings);
+
     // let file_to_read = match File::open(&path_details.path).await {
     //     Ok(f) => f,
     //     _ => return None,
@@ -233,9 +242,12 @@ async fn build_single_range_response(
 //   - over multiple ranges
 //   - while including boundaries
 //
-// Short solution is to limit file length.
+// But the most cause for concern is the ability to load an entire file in memory.
+// That is not good.
 //
+// Below is a potential way of serving multpart files.
 // For now it seems not worth including.
+//
 //
 // async fn build_multipart_range_response(
 //     mut file_to_read: File,

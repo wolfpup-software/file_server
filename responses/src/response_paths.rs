@@ -2,14 +2,12 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::header::ACCEPT_ENCODING;
 use hyper::http::Request;
 use std::path;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::fs;
 
 use std::ffi::OsStr;
 
 use crate::available_encodings::{get_encoded_ext, AvailableEncodings};
-use crate::content_type::get_content_type;
-use crate::last_resort_response::build_last_resort_response;
 
 pub async fn get_path_from_request_url(
     req: &Request<IncomingBody>,
@@ -32,7 +30,7 @@ pub async fn get_path_from_request_url(
         return None;
     }
 
-    let mut mtdt = match fs::metadata(&target_path).await {
+    let mtdt = match fs::metadata(&target_path).await {
         Ok(sdf) => sdf,
         _ => return None,
     };
@@ -43,11 +41,10 @@ pub async fn get_path_from_request_url(
     }
 
     if mtdt.is_dir() {
-        target_path.push("index.html")
-    }
-
-    if let Ok(md) = fs::metadata(&target_path).await {
-        return Some(target_path);
+        target_path.push("index.html");
+        if let Ok(_) = fs::metadata(&target_path).await {
+            return Some(target_path);
+        }
     }
 
     None
@@ -103,30 +100,4 @@ pub fn add_extension(filepath: &PathBuf, encoding: &str) -> Option<PathBuf> {
     fp_with_ext.push(os_ext);
 
     Some(PathBuf::from(fp_with_ext))
-}
-
-fn get_target_path_from_path(dir: &Path, target_path: &str) -> Option<PathBuf> {
-    let target_path_abs = match path::absolute(dir.join(&target_path)) {
-        Ok(pb) => pb,
-        _ => return None,
-    };
-
-    // confirm path resides in directory
-    if target_path_abs.starts_with(dir) {
-        return Some(target_path_abs);
-    }
-
-    None
-}
-
-fn push_encoded_paths(
-    paths: &mut Vec<(PathBuf, Option<String>)>,
-    req_path: &Path,
-    encodings: &Vec<String>,
-) {
-    for encoding in encodings {
-        if let Some(ext) = get_encoded_ext(encoding) {
-            paths.push((req_path.join(ext), Some(ext.to_string())));
-        }
-    }
 }

@@ -3,13 +3,10 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::header::{ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
-use std::path::Path;
 use std::path::PathBuf;
 use tokio::fs;
-use tokio::fs::File;
 
 use crate::content_type::get_content_type;
-use crate::get_range_response::build_get_range_response;
 use crate::last_resort_response::{build_last_resort_response, NOT_FOUND_404};
 use crate::response_paths::{add_extension, get_encodings, get_path_from_request_url};
 use crate::type_flyweight::BoxedResponse;
@@ -26,6 +23,8 @@ pub async fn build_head_response(
 
     let content_type = get_content_type(&filepath);
     let encodings = get_encodings(&req, content_encodings);
+
+    // range response
 
     // encodings
     if let Some(res) = compose_enc_head_response(&filepath, content_type, encodings).await {
