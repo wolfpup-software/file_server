@@ -16,7 +16,7 @@ use tokio_util::io::ReaderStream;
 use crate::content_type::get_content_type;
 use crate::content_type::HTML;
 use crate::last_resort_response::build_last_resort_response;
-use crate::response_paths::{get_encodings, get_path_from_request_url};
+use crate::response_paths::{add_extension, get_encodings, get_path_from_request_url};
 use crate::type_flyweight::BoxedResponse;
 
 pub const NOT_FOUND_416: &str = "416 requested range not satisfiable";
@@ -35,11 +35,10 @@ pub async fn build_get_response(
     };
 
     let content_type = get_content_type(&filepath);
+    let encodings = get_encodings(&req, content_encodings);
 
     // encodings
-    if let Some(res) =
-        compose_enc_get_response(req, &filepath, content_type, content_encodings).await
-    {
+    if let Some(res) = compose_enc_get_response(req, &filepath, content_type, encodings).await {
         return res;
     };
 
@@ -57,17 +56,19 @@ async fn compose_enc_get_response(
     req: Request<IncomingBody>,
     filepath: &PathBuf,
     content_type: &str,
-    content_encodings: Option<Vec<String>>,
+    encodings: Option<Vec<String>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let encodings = match get_encodings(&req, &filepath, content_encodings) {
-        Some(encdngs) => encdngs,
+    let encds = match encodings {
+        Some(encds) => encds,
         _ => return None,
     };
 
-    for (enc_path, enc) in encodings {
-        if let Some(res) = compose_get_response(&enc_path, content_type, Some(enc)).await {
-            return Some(res);
-        }
+    for enc in encds {
+        if let Some(encoded_path) = add_extension(filepath, &enc) {
+            if let Some(res) = compose_get_response(&encoded_path, content_type, Some(enc)).await {
+                return Some(res);
+            }
+        };
     }
 
     None

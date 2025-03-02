@@ -58,9 +58,8 @@ pub async fn get_path_from_request_url(
 
 pub fn get_encodings(
     req: &Request<IncomingBody>,
-    filepath: &PathBuf,
     content_encodings: Option<Vec<String>>,
-) -> Option<Vec<(PathBuf, String)>> {
+) -> Option<Vec<String>> {
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
         Some(enc) => enc,
         _ => return None,
@@ -77,9 +76,7 @@ pub fn get_encodings(
         let trimmed = encoding.trim();
         if available_encodings.encoding_is_available(trimmed) {
             // get path with extension
-            if let Some(enc_path) = add_extension(filepath, trimmed) {
-                encodings.push((enc_path, trimmed.to_string()));
-            }
+            encodings.push(trimmed.to_string());
         }
     }
 
@@ -92,7 +89,9 @@ pub fn get_encodings(
 
 // nightly API replacement
 // https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension
-fn add_extension(filepath: &PathBuf, encoding: &str) -> Option<PathBuf> {
+
+// Filepath must be an file, not a directory for this to work.
+pub fn add_extension(filepath: &PathBuf, encoding: &str) -> Option<PathBuf> {
     let enc_ext = match get_encoded_ext(encoding) {
         Some(enc) => enc,
         _ => return None,
