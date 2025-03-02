@@ -28,7 +28,7 @@ pub async fn build_head_response(
     let encodings = get_encodings(&req, content_encodings);
 
     // encodings
-    if let Some(res) = compose_enc_head_response(req, &filepath, content_type, encodings).await {
+    if let Some(res) = compose_enc_head_response(&filepath, content_type, encodings).await {
         return res;
     };
 
@@ -41,7 +41,6 @@ pub async fn build_head_response(
 }
 
 async fn compose_enc_head_response(
-    req: Request<IncomingBody>,
     filepath: &PathBuf,
     content_type: &str,
     encodings: Option<Vec<String>>,

@@ -38,7 +38,7 @@ pub async fn build_get_response(
     let encodings = get_encodings(&req, content_encodings);
 
     // encodings
-    if let Some(res) = compose_enc_get_response(req, &filepath, content_type, encodings).await {
+    if let Some(res) = compose_enc_get_response(&filepath, content_type, encodings).await {
         return res;
     };
 
@@ -53,7 +53,6 @@ pub async fn build_get_response(
 }
 
 async fn compose_enc_get_response(
-    req: Request<IncomingBody>,
     filepath: &PathBuf,
     content_type: &str,
     encodings: Option<Vec<String>>,
