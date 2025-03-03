@@ -1,17 +1,15 @@
 use futures_util::TryStreamExt;
-use http_body_util::{BodyExt, Full, StreamBody};
+use http_body_util::{BodyExt, StreamBody};
 use hyper::body::Frame;
 use hyper::body::Incoming as IncomingBody;
 use hyper::header::{
     ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
 };
 use hyper::http::{Request, Response, StatusCode};
-use std::fs::Metadata;
 use std::io::SeekFrom;
 use std::path::PathBuf;
-use tokio::fs;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::io::AsyncSeekExt;
 use tokio_util::io::ReaderStream;
 
 use crate::content_type::get_content_type;
@@ -33,25 +31,21 @@ pub async fn build_range_response(
     directory: &PathBuf,
     content_encodings: &Option<Vec<String>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    // bail immediately if no range header
-    //
     let range_header = match get_range_header(req) {
         Some(rh) => rh,
         _ => return None,
     };
 
-    // needs special header
-    // no body
-    //
     let ranges = match get_ranges(&range_header) {
         Some(rngs) => rngs,
-        _ => return None,
+        _ => {
+            return Some(build_last_resort_response(
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                RANGE_NOT_SATISFIABLE_416,
+            ))
+        }
     };
 
-    // parse header with a [(None, Option<usize>), ...]
-    // if none return 416
-    // then interpret it later
-    //
     let filepath = match get_path_from_request_url(&req, &directory).await {
         Some(fp) => fp,
         _ => {
@@ -107,7 +101,7 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
     };
 
     // track the last
-    let mut last_last = 0;
+    let mut last_last = Some(0);
 
     let mut ranges: Vec<(Option<usize>, Option<usize>)> = Vec::new();
     for value_str in range_values_str.split(",") {
@@ -124,6 +118,8 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
                 Ok(sri) => sri,
                 _ => return None,
             };
+
+            // if last_last None (end of file)
 
             ranges.push((None, Some(start_range_int)));
             continue;
@@ -279,7 +275,7 @@ async fn compose_single_range_response(
     let boxed_body = stream_body.boxed();
 
     let mut builder = Response::builder()
-        .status(StatusCode::PARTIAL_CONTENT)
+        .status(status_code)
         .header(CONTENT_TYPE, content_type)
         .header(CONTENT_RANGE, content_range_header)
         .header(CONTENT_LENGTH, buffer.len().to_string());

@@ -11,7 +11,6 @@ use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
 use crate::content_type::get_content_type;
-use crate::content_type::HTML;
 use crate::last_resort_response::build_last_resort_response;
 use crate::range_response::build_range_response;
 use crate::response_paths::{add_extension, get_encodings, get_path_from_request_url};
