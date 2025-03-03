@@ -9,6 +9,7 @@ use hyper::http::{Request, Response, StatusCode};
 use std::fs::Metadata;
 use std::io::SeekFrom;
 use std::path::PathBuf;
+use tokio::fs;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
@@ -36,6 +37,17 @@ pub async fn build_range_response(
         _ => return None,
     };
 
+    let ranges = match get_ranges(&range_header) {
+        Some(rngs) => rngs,
+        _ => return None,
+    };
+
+    //
+
+    // parse header with a [(None, Option<usize>), ...]
+    // if none return 416
+    // then interpret it later
+
     let filepath = match get_path_from_request_url(&req, &directory).await {
         Some(fp) => fp,
         _ => {
@@ -46,29 +58,31 @@ pub async fn build_range_response(
         }
     };
 
+    // encodings
+    //
+    // if encoded path is available?
+    //      then serve encoded path with range
+
+    // get range sub function
+    let metadata = match fs::metadata(&filepath).await {
+        Ok(m) => m,
+        _ => return None,
+    };
+
+    let size = metadata.len() as usize;
+
+    if 0 == ranges.len() {
+        return None;
+    }
+
+    // then do serve encoded files or files
+    let file_to_read = match File::open(&filepath).await {
+        Ok(f) => f,
+        _ => return None,
+    };
+
     let content_type = get_content_type(&filepath);
     let encodings = get_encodings(&req, &content_encodings);
-
-    // let file_to_read = match File::open(&path_details.path).await {
-    //     Ok(f) => f,
-    //     _ => return None,
-    // };
-
-    // let metadata = match file_to_read.metadata().await {
-    //     Ok(m) => m,
-    //     _ => return None,
-    // };
-
-    // let size = metadata.len() as usize;
-
-    // let ranges = match get_ranges(range_str, size) {
-    //     Some(rngs) => rngs,
-    //     _ => return None,
-    // };
-
-    // if 0 == ranges.len() {
-    //     return None;
-    // }
 
     // // single range
     // if 1 == ranges.len() {
@@ -102,7 +116,121 @@ fn get_range_header(req: &Request<IncomingBody>) -> Option<String> {
 }
 
 // on any fail return nothing
-fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
+// fn get_ranges_2(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
+//     let stripped_range = range_str.trim();
+//     let range_values_str = match stripped_range.strip_prefix("bytes=") {
+//         Some(r) => r,
+//         _ => return None,
+//     };
+
+//     // track the last
+//     let mut last_last = 0;
+
+//     let mut ranges: Vec<(usize, usize)> = Vec::new();
+//     for value_str in range_values_str.split(",") {
+//         let trimmed_value_str = value_str.trim();
+
+//         // Range: <unit>=-<suffix-length>
+//         //
+//         // M is the byte size of file
+//         // N is the start index
+//         // possible seek and read from N -> M
+//         //
+//         if let Some(without_suffix) = trimmed_value_str.strip_suffix("-") {
+//             // parse int
+//             // push
+//             let start_range_int: usize = match without_suffix.parse() {
+//                 Ok(sri) => sri,
+//                 _ => return None,
+//             };
+
+//             // overlap
+//             if start_range_int < last_last {
+//                 return None;
+//             }
+//             last_last = size;
+
+//             ranges.push((start_range_int, size));
+//             continue;
+//         }
+
+//         // Range: <unit>=<range-start>-
+//         //
+//         // M is byte size of file
+//         // N is the
+//         // possible seek and read from (M - N) -> M
+//         //
+//         if let Some(without_prefix) = trimmed_value_str.strip_prefix("-") {
+//             // possible suffix
+//             let end_range_int: usize = match without_prefix.parse() {
+//                 Ok(sri) => sri,
+//                 _ => return None,
+//             };
+
+//             if end_range_int >= size {
+//                 return None;
+//             }
+
+//             let start_range_int = size - end_range_int;
+
+//             // overlap
+//             if start_range_int < last_last {
+//                 return None;
+//             }
+//             last_last = size;
+
+//             ranges.push((start_range_int, size));
+//             continue;
+//         }
+
+//         // Range: <unit>=<range-start>-<range-end>
+//         //
+//         let mut values = trimmed_value_str.split("-");
+
+//         let start_range_str = match values.next() {
+//             Some(start_range) => start_range,
+//             _ => return None,
+//         };
+
+//         let end_range_str = match values.next() {
+//             Some(end_range) => end_range,
+//             _ => return None,
+//         };
+
+//         let start_range_int: usize = match start_range_str.parse() {
+//             Ok(sri) => sri,
+//             _ => return None,
+//         };
+
+//         let end_range_int: usize = match end_range_str.parse() {
+//             Ok(sri) => sri,
+//             _ => return None,
+//         };
+
+//         // check bounds
+//         // overlap
+//         if start_range_int < last_last {
+//             return None;
+//         }
+//         last_last = end_range_int;
+
+//         if start_range_int > end_range_int {
+//             return None;
+//         }
+
+//         // swap for "size", never read more than size
+//         if end_range_int > size {
+//             return None;
+//         }
+
+//         ranges.push((start_range_int, end_range_int))
+//     }
+
+//     return Some(ranges);
+// }
+
+// on any fail return nothing
+fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
     let stripped_range = range_str.trim();
     let range_values_str = match stripped_range.strip_prefix("bytes=") {
         Some(r) => r,
@@ -112,7 +240,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
     // track the last
     let mut last_last = 0;
 
-    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    let mut ranges: Vec<(Option<usize>, Option<usize>)> = Vec::new();
     for value_str in range_values_str.split(",") {
         let trimmed_value_str = value_str.trim();
 
@@ -120,23 +248,15 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
         //
         // M is the byte size of file
         // N is the start index
-        // possible seek and read from N -> M
+        // seek and read from N -> M
         //
         if let Some(without_suffix) = trimmed_value_str.strip_suffix("-") {
-            // parse int
-            // push
             let start_range_int: usize = match without_suffix.parse() {
                 Ok(sri) => sri,
                 _ => return None,
             };
 
-            // overlap
-            if start_range_int < last_last {
-                return None;
-            }
-            last_last = size;
-
-            ranges.push((start_range_int, size));
+            ranges.push((Some(start_range_int), None));
             continue;
         }
 
@@ -144,7 +264,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
         //
         // M is byte size of file
         // N is the
-        // possible seek and read from (M - N) -> M
+        // seek and read from (M - N) -> M
         //
         if let Some(without_prefix) = trimmed_value_str.strip_prefix("-") {
             // possible suffix
@@ -153,19 +273,7 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
                 _ => return None,
             };
 
-            if end_range_int >= size {
-                return None;
-            }
-
-            let start_range_int = size - end_range_int;
-
-            // overlap
-            if start_range_int < last_last {
-                return None;
-            }
-            last_last = size;
-
-            ranges.push((start_range_int, size));
+            ranges.push((None, Some(end_range_int)));
             continue;
         }
 
@@ -192,24 +300,11 @@ fn get_ranges(range_str: &str, size: usize) -> Option<Vec<(usize, usize)>> {
             Ok(sri) => sri,
             _ => return None,
         };
-
-        // check bounds
-        // overlap
-        if start_range_int < last_last {
-            return None;
-        }
-        last_last = end_range_int;
-
         if start_range_int > end_range_int {
             return None;
         }
 
-        // swap for "size", never read more than size
-        if end_range_int > size {
-            return None;
-        }
-
-        ranges.push((start_range_int, end_range_int))
+        ranges.push((Some(start_range_int), Some(end_range_int)))
     }
 
     return Some(ranges);
