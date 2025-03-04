@@ -3,7 +3,7 @@ use http_body_util::{BodyExt, StreamBody};
 use hyper::body::Frame;
 use hyper::body::Incoming as IncomingBody;
 use hyper::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
+    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, RANGE, CONTENT_RANGE, CONTENT_TYPE,
 };
 use hyper::http::{Request, Response, StatusCode};
 use std::io::SeekFrom;
@@ -35,6 +35,8 @@ pub async fn build_range_response(
         Some(rh) => rh,
         _ => return None,
     };
+
+    println!("{}", range_header);
 
     let ranges = match get_ranges(&range_header) {
         Some(rngs) => rngs,
@@ -81,7 +83,7 @@ pub async fn build_range_response(
 }
 
 fn get_range_header(req: &Request<IncomingBody>) -> Option<String> {
-    let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
+    let accept_encoding_header = match req.headers().get(RANGE) {
         Some(enc) => enc,
         _ => return None,
     };
@@ -121,7 +123,7 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
 
             // if last_last None (end of file)
 
-            ranges.push((None, Some(start_range_int)));
+            ranges.push((Some(start_range_int), None));
             continue;
         }
 
@@ -138,7 +140,7 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
                 _ => return None,
             };
 
-            ranges.push((Some(end_range_int), None));
+            ranges.push((None, Some(end_range_int)));
             continue;
         }
 
@@ -255,19 +257,29 @@ async fn compose_single_range_response(
 
     // check if end is within byte range
     let (start, end) = match ranges.get(0) {
+        // suffix (M - N, M)
         Some((None, Some(end))) => (size - end, size),
+        // prefix (N, M)
         Some((Some(start), None)) => (start.clone(), size),
+        // 
         Some((Some(start), Some(end))) => (start.clone(), end.clone()),
         _ => return None,
     };
+
+    if end < start || size < start {
+        return Some(build_last_resort_response(
+            StatusCode::RANGE_NOT_SATISFIABLE,
+            RANGE_NOT_SATISFIABLE_416,
+        ))
+    }
 
     let _cursor = match file.seek(SeekFrom::Start(start.clone() as u64)).await {
         Ok(crsr) => crsr,
         _ => return None,
     };
 
-    let mut buffer: Vec<u8> = Vec::with_capacity(end - start + 1);
-    buffer.resize(end - start + 1, 0);
+    let mut buffer: Vec<u8> = Vec::with_capacity(end - start);
+    buffer.resize(end - start, 0);
 
     let content_range_header = build_content_range_header_str(&start, &end, &size);
     let reader_stream = ReaderStream::with_capacity(file, size);
