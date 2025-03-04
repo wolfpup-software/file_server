@@ -68,6 +68,10 @@ async fn compose_head_response(
         _ => return None,
     };
 
+    if !metadata.is_file() {
+        return None;
+    }
+
     let mut builder = Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, content_type)

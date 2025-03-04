@@ -38,7 +38,7 @@ pub async fn build_get_response(
     let content_type = get_content_type(&filepath);
     let encodings = get_encodings(&req, &content_encodings);
 
-    // encodings
+    // encodings and target file
     if let Some(res) = build_responses(&filepath, content_type, StatusCode::OK, &encodings).await {
         return res;
     };
@@ -114,6 +114,10 @@ async fn compose_get_response(
         Ok(m) => m,
         _ => return None,
     };
+
+    if !metadata.is_file() {
+        return None;
+    }
 
     let mut builder = Response::builder()
         .status(status_code)

@@ -2,9 +2,7 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, StreamBody};
 use hyper::body::Frame;
 use hyper::body::Incoming as IncomingBody;
-use hyper::header::{
-    ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, RANGE, CONTENT_RANGE, CONTENT_TYPE,
-};
+use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE};
 use hyper::http::{Request, Response, StatusCode};
 use std::io::SeekFrom;
 use std::path::PathBuf;
@@ -35,8 +33,6 @@ pub async fn build_range_response(
         Some(rh) => rh,
         _ => return None,
     };
-
-    println!("{}", range_header);
 
     let ranges = match get_ranges(&range_header) {
         Some(rngs) => rngs,
@@ -253,15 +249,17 @@ async fn compose_single_range_response(
         _ => return None,
     };
 
-    let size = metadata.len() as usize;
+    if !metadata.is_file() {
+        return None;
+    }
 
-    // check if end is within byte range
+    let size = metadata.len() as usize;
     let (start, end) = match ranges.get(0) {
         // suffix (M - N, M)
         Some((None, Some(end))) => (size - end, size),
         // prefix (N, M)
         Some((Some(start), None)) => (start.clone(), size),
-        // 
+        //
         Some((Some(start), Some(end))) => (start.clone(), end.clone()),
         _ => return None,
     };
@@ -270,7 +268,7 @@ async fn compose_single_range_response(
         return Some(build_last_resort_response(
             StatusCode::RANGE_NOT_SATISFIABLE,
             RANGE_NOT_SATISFIABLE_416,
-        ))
+        ));
     }
 
     let _cursor = match file.seek(SeekFrom::Start(start.clone() as u64)).await {
