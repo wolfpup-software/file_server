@@ -37,7 +37,7 @@ pub async fn build_get_response(
 
     // serve 404
     if let Some(res) = build_not_found_response(&directory, &fallback_404, &encodings).await {
-        return res
+        return res;
     };
 
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
@@ -66,7 +66,7 @@ async fn build_not_found_response(
     if let Some(fallback) = fallback_404 {
         // file starts with directory
         let content_type = get_content_type(&fallback);
-        return build_responses(&fallback, content_type, StatusCode::NOT_FOUND, &encodings).await
+        return build_responses(&fallback, content_type, StatusCode::NOT_FOUND, &encodings).await;
     }
 
     None
