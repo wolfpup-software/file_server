@@ -28,6 +28,8 @@ pub async fn build_get_response(
     if let Some(res) = build_range_response(&req, &directory, &content_encodings).await {
         return res;
     }
+
+    // request file
     let encodings = get_encodings(&req, &content_encodings);
 
     // serve file
@@ -86,11 +88,7 @@ async fn build_responses(
     };
 
     // origin target
-    if let Some(res) = compose_get_response(&filepath, content_type, status_code, None).await {
-        return Some(res);
-    }
-
-    None
+    compose_get_response(&filepath, content_type, status_code, None).await
 }
 
 async fn compose_enc_get_response(
