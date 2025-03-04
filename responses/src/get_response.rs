@@ -28,31 +28,48 @@ pub async fn build_get_response(
     if let Some(res) = build_range_response(&req, &directory, &content_encodings).await {
         return res;
     }
-
-    // otherwise serve file
-    let filepath = match get_path_from_request_url(&req, &directory).await {
-        Some(fp) => fp,
-        _ => return build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
-    };
-
-    let content_type = get_content_type(&filepath);
     let encodings = get_encodings(&req, &content_encodings);
 
-    // encodings and target file
-    if let Some(res) = build_responses(&filepath, content_type, StatusCode::OK, &encodings).await {
+    // serve file
+    if let Some(res) = build_file_response(&req, &directory, &encodings).await {
         return res;
     };
 
-    // filepath 404s
-    if let Some(fallback) = fallback_404 {
-        if let Some(res) =
-            build_responses(&fallback, content_type, StatusCode::NOT_FOUND, &encodings).await
-        {
-            return res;
-        };
-    }
+    // serve 404
+    if let Some(res) = build_not_found_response(&directory, &fallback_404, &encodings).await {
+        return res
+    };
 
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+}
+
+async fn build_file_response(
+    req: &Request<IncomingBody>,
+    directory: &PathBuf,
+    encodings: &Option<Vec<String>>,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    let filepath = match get_path_from_request_url(req, directory).await {
+        Some(fp) => fp,
+        _ => return None,
+    };
+
+    let content_type = get_content_type(&filepath);
+
+    build_responses(&filepath, content_type, StatusCode::OK, &encodings).await
+}
+
+async fn build_not_found_response(
+    directory: &PathBuf,
+    fallback_404: &Option<PathBuf>,
+    encodings: &Option<Vec<String>>,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    if let Some(fallback) = fallback_404 {
+        // file starts with directory
+        let content_type = get_content_type(&fallback);
+        return build_responses(&fallback, content_type, StatusCode::NOT_FOUND, &encodings).await
+    }
+
+    None
 }
 
 async fn build_responses(
@@ -61,6 +78,7 @@ async fn build_responses(
     status_code: StatusCode,
     encodings: &Option<Vec<String>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    // encodings
     if let Some(res) =
         compose_enc_get_response(&filepath, content_type, status_code, &encodings).await
     {

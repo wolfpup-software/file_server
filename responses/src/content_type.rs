@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 pub const HTML: &str = "text/html; charset=utf-8";
+pub const TEXT: &str = "text/plain; charset=utf-8";
 const OCTET: &str = "application/octet-stream";
-const TEXT: &str = "text/plain; charset=utf-8";
 
 pub fn get_content_type(target_path: &PathBuf) -> &str {
     let extension = match target_path.extension() {
