@@ -1,5 +1,5 @@
 use http_body_util::{BodyExt, Full};
-use hyper::body::Incoming as IncomingBody;
+use hyper::body::Incoming;
 use hyper::header::{ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
@@ -12,7 +12,7 @@ use crate::response_paths::{add_extension, get_encodings, get_path_from_request_
 use crate::type_flyweight::BoxedResponse;
 
 pub async fn build_head_response(
-    req: Request<IncomingBody>,
+    req: Request<Incoming>,
     directory: PathBuf,
     content_encodings: Option<Vec<String>>,
 ) -> Result<BoxedResponse, hyper::http::Error> {

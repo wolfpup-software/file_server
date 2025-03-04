@@ -1,16 +1,15 @@
-use hyper::body::Incoming as IncomingBody;
+use hyper::body::Incoming;
 use hyper::header::ACCEPT_ENCODING;
 use hyper::http::Request;
+use std::ffi::OsStr;
 use std::path;
 use std::path::PathBuf;
 use tokio::fs;
 
-use std::ffi::OsStr;
-
 use crate::available_encodings::{get_encoded_ext, AvailableEncodings};
 
 pub async fn get_path_from_request_url(
-    req: &Request<IncomingBody>,
+    req: &Request<Incoming>,
     directory: &PathBuf,
 ) -> Option<PathBuf> {
     let uri_path = req.uri().path();
@@ -51,7 +50,7 @@ pub async fn get_path_from_request_url(
 }
 
 pub fn get_encodings(
-    req: &Request<IncomingBody>,
+    req: &Request<Incoming>,
     content_encodings: &Option<Vec<String>>,
 ) -> Option<Vec<String>> {
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {

@@ -20,7 +20,7 @@ use crate::type_flyweight::BoxedResponse;
 // Range: <unit>=<range-start>-<range-end>
 // Range: <unit>=-<suffix-length>
 
-// multi range requests require an entire different strategy
+// multi range requests require an entirely different strategy
 // Range: <unit>=<range-start>-<range-end>, …, <range-startN>-<range-endN>
 
 pub const RANGE_NOT_SATISFIABLE_416: &str = "416 range not satisfiable";
@@ -261,9 +261,8 @@ async fn compose_single_range_response(
         _ => return None,
     };
 
-    let _cursor = match file.seek(SeekFrom::Start(start.clone() as u64)).await {
-        Ok(crsr) => crsr,
-        _ => return None,
+    if let Err(e) = file.seek(SeekFrom::Start(start.clone() as u64)).await {
+        return None;
     };
 
     let mut buffer: Vec<u8> = Vec::with_capacity(end - start);

@@ -1,4 +1,4 @@
-use hyper::body::Incoming as IncomingBody;
+use hyper::body::Incoming;
 use hyper::http::Request;
 use hyper::Method;
 use hyper::StatusCode;
@@ -12,7 +12,7 @@ use crate::type_flyweight::BoxedResponse;
 pub const METHOD_NOT_ALLOWED_405: &str = "405 method not allowed";
 
 pub async fn build_response(
-    req: Request<IncomingBody>,
+    req: Request<Incoming>,
     directory: PathBuf,
     content_encodings: Option<Vec<String>>,
     fallback_404: Option<PathBuf>,

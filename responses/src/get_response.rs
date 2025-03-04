@@ -1,10 +1,8 @@
 use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, StreamBody};
-use hyper::body::Frame;
-use hyper::body::Incoming as IncomingBody;
+use hyper::body::{Frame, Incoming};
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
-use hyper::http::Request;
-use hyper::http::Response;
+use hyper::http::{Request, Response};
 use hyper::StatusCode;
 use std::path::PathBuf;
 use tokio::fs;
@@ -20,7 +18,7 @@ use crate::type_flyweight::BoxedResponse;
 pub const NOT_FOUND_404: &str = "404 not found";
 
 pub async fn build_get_response(
-    req: Request<IncomingBody>,
+    req: Request<Incoming>,
     directory: PathBuf,
     content_encodings: Option<Vec<String>>,
     fallback_404: Option<PathBuf>,
@@ -47,7 +45,7 @@ pub async fn build_get_response(
 }
 
 async fn build_file_response(
-    req: &Request<IncomingBody>,
+    req: &Request<Incoming>,
     directory: &PathBuf,
     encodings: &Option<Vec<String>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
