@@ -7,6 +7,7 @@ use hyper::http::Request;
 use hyper::http::Response;
 use hyper::StatusCode;
 use std::path::PathBuf;
+use tokio::fs;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
@@ -121,12 +122,7 @@ async fn compose_get_response(
     status_code: StatusCode,
     content_encoding: Option<&str>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let file = match File::open(filepath).await {
-        Ok(m) => m,
-        _ => return None,
-    };
-
-    let metadata = match file.metadata().await {
+    let metadata = match fs::metadata(filepath).await {
         Ok(m) => m,
         _ => return None,
     };
@@ -134,6 +130,11 @@ async fn compose_get_response(
     if !metadata.is_file() {
         return None;
     }
+
+    let file = match File::open(filepath).await {
+        Ok(m) => m,
+        _ => return None,
+    };
 
     let mut builder = Response::builder()
         .status(status_code)

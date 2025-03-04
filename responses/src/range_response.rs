@@ -6,6 +6,7 @@ use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYP
 use hyper::http::{Request, Response, StatusCode};
 use std::io::SeekFrom;
 use std::path::PathBuf;
+use tokio::fs;
 use tokio::fs::File;
 use tokio::io::AsyncSeekExt;
 use tokio_util::io::ReaderStream;
@@ -106,11 +107,6 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
         let trimmed_value_str = value_str.trim();
 
         // Range: <unit>=-<suffix-length>
-        //
-        // M is the byte size of file
-        // N is the start index
-        // seek and read from N -> M
-        //
         if let Some(without_suffix) = trimmed_value_str.strip_suffix("-") {
             let start_range_int: usize = match without_suffix.parse() {
                 Ok(sri) => sri,
@@ -124,11 +120,6 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
         }
 
         // Range: <unit>=<range-start>-
-        //
-        // M is byte size of file
-        // N is the
-        // seek and read from (M - N) -> M
-        //
         if let Some(without_prefix) = trimmed_value_str.strip_prefix("-") {
             // possible suffix
             let end_range_int: usize = match without_prefix.parse() {
@@ -141,7 +132,6 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
         }
 
         // Range: <unit>=<range-start>-<range-end>
-        //
         let mut values = trimmed_value_str.split("-");
 
         let start_range_str = match values.next() {
@@ -239,12 +229,7 @@ async fn compose_single_range_response(
     ranges: &Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     // build response
-    let mut file = match File::open(filepath).await {
-        Ok(m) => m,
-        _ => return None,
-    };
-
-    let metadata = match file.metadata().await {
+    let metadata = match fs::metadata(filepath).await {
         Ok(m) => m,
         _ => return None,
     };
@@ -270,6 +255,11 @@ async fn compose_single_range_response(
             RANGE_NOT_SATISFIABLE_416,
         ));
     }
+
+    let mut file = match File::open(filepath).await {
+        Ok(m) => m,
+        _ => return None,
+    };
 
     let _cursor = match file.seek(SeekFrom::Start(start.clone() as u64)).await {
         Ok(crsr) => crsr,
