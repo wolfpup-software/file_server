@@ -7,16 +7,13 @@ use tokio::net::TcpListener;
 mod config;
 mod service;
 
+use crate::config::Config;
+
 #[tokio::main]
 async fn main() {
-    let config_path = match env::args().nth(1) {
-        Some(dir) => PathBuf::from(dir),
-        None => return println!("conf error: \nargs filepath missing from args"),
-    };
-
-    let conf = match config::Config::try_from(&config_path).await {
-        Ok(conf) => conf,
-        Err(e) => return println!("conf error:\n{}", e),
+    let conf = match get_config().await {
+        Ok(c) => c,
+        Err(e) => return println!("{}", e.to_string()),
     };
 
     let listener = match TcpListener::bind(conf.host_and_port).await {
@@ -41,5 +38,15 @@ async fn main() {
                 .serve_connection(io, svc)
                 .await
         });
+    }
+}
+
+async fn get_config() -> Result<Config, String> {
+    match env::args().nth(1) {
+        Some(conf_path) => {
+            let conf_path_buf = PathBuf::from(conf_path);
+            return Config::try_from(&conf_path_buf).await;
+        }
+        _ => Config::new(),
     }
 }

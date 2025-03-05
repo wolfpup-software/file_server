@@ -39,11 +39,18 @@ pub async fn get_path_from_request_url(
         return Some(target_path);
     }
 
+    // if directory try an index.html file
     if mtdt.is_dir() {
         target_path.push("index.html");
-        if let Ok(_) = fs::metadata(&target_path).await {
-            return Some(target_path);
-        }
+    }
+
+    let mtdt = match fs::metadata(&target_path).await {
+        Ok(sdf) => sdf,
+        _ => return None,
+    };
+
+    if mtdt.is_file() {
+        return Some(target_path);
     }
 
     None
@@ -64,6 +71,7 @@ pub fn get_encodings(
     };
 
     let available_encodings = AvailableEncodings::new(content_encodings);
+
     let mut encodings = Vec::new();
     for encoding in encoding_str.split(",") {
         let trimmed = encoding.trim();

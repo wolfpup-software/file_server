@@ -229,6 +229,8 @@ async fn compose_single_range_response(
     ranges: &Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     // build response
+
+    // get size if file
     let metadata = match fs::metadata(filepath).await {
         Ok(m) => m,
         _ => return None,

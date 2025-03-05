@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::env;
 use std::path;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -13,6 +14,20 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn new() -> Result<Config, String> {
+        let curr_dir = match env::current_dir() {
+            Ok(pb) => pb,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        Ok(Config {
+            host_and_port: "0.0.0.0:6000".to_string(),
+            directory: curr_dir,
+            content_encodings: None,
+            filepath_404: None,
+        })
+    }
+
     pub async fn try_from(source_path: &PathBuf) -> Result<Config, String> {
         // see if config exists
         let config_json = match fs::read_to_string(source_path).await {
