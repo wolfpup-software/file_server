@@ -54,9 +54,7 @@ async fn build_file_response(
         _ => return None,
     };
 
-    let content_type = get_content_type(&filepath);
-
-    build_responses(&filepath, content_type, StatusCode::OK, &encodings).await
+    build_responses(&filepath, StatusCode::OK, &encodings).await
 }
 
 async fn build_not_found_response(
@@ -66,8 +64,7 @@ async fn build_not_found_response(
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     if let Some(fallback) = fallback_404 {
         // file starts with directory
-        let content_type = get_content_type(&fallback);
-        return build_responses(&fallback, content_type, StatusCode::NOT_FOUND, &encodings).await;
+        return build_responses(&fallback, StatusCode::NOT_FOUND, &encodings).await;
     }
 
     None
@@ -75,10 +72,11 @@ async fn build_not_found_response(
 
 async fn build_responses(
     filepath: &PathBuf,
-    content_type: &str,
     status_code: StatusCode,
     encodings: &Option<Vec<String>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    let content_type = get_content_type(&filepath);
+
     // encodings
     if let Some(res) =
         compose_enc_get_response(&filepath, content_type, status_code, &encodings).await

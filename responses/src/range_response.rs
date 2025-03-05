@@ -60,14 +60,7 @@ pub async fn build_range_response(
 
     // single range
     if 1 == ranges.len() {
-        if let Some(res) = build_range_responses(
-            &filepath,
-            &content_type,
-            StatusCode::PARTIAL_CONTENT,
-            &encodings,
-            ranges,
-        )
-        .await
+        if let Some(res) = build_range_responses(&filepath, &content_type, &encodings, ranges).await
         {
             return Some(res);
         }
@@ -132,35 +125,45 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
         }
 
         // Range: <unit>=<range-start>-<range-end>
-        let mut values = trimmed_value_str.split("-");
-
-        let start_range_str = match values.next() {
-            Some(start_range) => start_range,
+        let start_end_range = match get_start_end_range(trimmed_value_str) {
+            Some(ser) => ser,
             _ => return None,
         };
 
-        let end_range_str = match values.next() {
-            Some(end_range) => end_range,
-            _ => return None,
-        };
-
-        let start_range_int: usize = match start_range_str.parse() {
-            Ok(sri) => sri,
-            _ => return None,
-        };
-
-        let end_range_int: usize = match end_range_str.parse() {
-            Ok(sri) => sri,
-            _ => return None,
-        };
-        if start_range_int > end_range_int {
-            return None;
-        }
-
-        ranges.push((Some(start_range_int), Some(end_range_int)))
+        ranges.push(start_end_range)
     }
 
     return Some(ranges);
+}
+
+fn get_start_end_range(range_chunk: &str) -> Option<(Option<usize>, Option<usize>)> {
+    let mut values = range_chunk.split("-");
+
+    let start_range_str = match values.next() {
+        Some(start_range) => start_range,
+        _ => return None,
+    };
+
+    let end_range_str = match values.next() {
+        Some(end_range) => end_range,
+        _ => return None,
+    };
+
+    let start_range_int: usize = match start_range_str.parse() {
+        Ok(sri) => sri,
+        _ => return None,
+    };
+
+    let end_range_int: usize = match end_range_str.parse() {
+        Ok(sri) => sri,
+        _ => return None,
+    };
+
+    if start_range_int < end_range_int {
+        return Some((Some(start_range_int), Some(end_range_int)));
+    }
+
+    None
 }
 
 fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> String {
@@ -170,20 +173,17 @@ fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> S
 async fn build_range_responses(
     filepath: &PathBuf,
     content_type: &str,
-    status_code: StatusCode,
     encodings: &Option<Vec<String>>,
     ranges: Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     if let Some(res) =
-        compose_enc_range_response(&filepath, content_type, status_code, &encodings, &ranges).await
+        compose_enc_range_response(&filepath, content_type, &encodings, &ranges).await
     {
         return Some(res);
     };
 
     // origin target
-    if let Some(res) =
-        compose_single_range_response(&filepath, content_type, status_code, None, &ranges).await
-    {
+    if let Some(res) = compose_single_range_response(&filepath, content_type, None, &ranges).await {
         return Some(res);
     }
 
@@ -193,7 +193,6 @@ async fn build_range_responses(
 async fn compose_enc_range_response(
     filepath: &PathBuf,
     content_type: &str,
-    status_code: StatusCode,
     encodings: &Option<Vec<String>>,
     ranges: &Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
@@ -204,14 +203,8 @@ async fn compose_enc_range_response(
 
     for enc in encds {
         if let Some(encoded_path) = add_extension(filepath, &enc) {
-            if let Some(res) = compose_single_range_response(
-                &encoded_path,
-                content_type,
-                status_code,
-                Some(enc),
-                ranges,
-            )
-            .await
+            if let Some(res) =
+                compose_single_range_response(&encoded_path, content_type, Some(enc), ranges).await
             {
                 return Some(res);
             }
@@ -224,7 +217,6 @@ async fn compose_enc_range_response(
 async fn compose_single_range_response(
     filepath: &PathBuf,
     content_type: &str,
-    status_code: StatusCode,
     content_encoding: Option<&str>,
     ranges: &Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
@@ -276,7 +268,7 @@ async fn compose_single_range_response(
     let boxed_body = stream_body.boxed();
 
     let mut builder = Response::builder()
-        .status(status_code)
+        .status(StatusCode::PARTIAL_CONTENT)
         .header(CONTENT_TYPE, content_type)
         .header(CONTENT_RANGE, content_range_header)
         .header(CONTENT_LENGTH, buffer.len().to_string());
