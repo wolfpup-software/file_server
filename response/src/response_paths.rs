@@ -60,7 +60,6 @@ pub fn get_encodings(
     req: &Request<Incoming>,
     content_encodings: &Option<Vec<String>>,
 ) -> Option<Vec<String>> {
-    println!("potential encodings: {:?}", &content_encodings);
     let accept_encoding_header = match req.headers().get(ACCEPT_ENCODING) {
         Some(enc) => enc,
         _ => return None,

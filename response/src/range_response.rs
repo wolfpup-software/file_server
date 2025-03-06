@@ -66,29 +66,23 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
         _ => return None,
     };
 
-    // track the last
-    let mut last_last = Some(0);
-
     let mut ranges: Vec<(Option<usize>, Option<usize>)> = Vec::new();
     for value_str in range_values_str.split(",") {
         let trimmed_value_str = value_str.trim();
 
-        // Range: <unit>=-<suffix-length>
+        // prefix range
         if let Some(without_suffix) = trimmed_value_str.strip_suffix("-") {
             let start_range_int: usize = match without_suffix.parse() {
                 Ok(sri) => sri,
                 _ => return None,
             };
 
-            // if last_last None (end of file)
-
             ranges.push((Some(start_range_int), None));
             continue;
         }
 
-        // Range: <unit>=<range-start>-
+        // suffix-range
         if let Some(without_prefix) = trimmed_value_str.strip_prefix("-") {
-            // possible suffix
             let end_range_int: usize = match without_prefix.parse() {
                 Ok(sri) => sri,
                 _ => return None,
@@ -98,8 +92,8 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
             continue;
         }
 
-        // Range: <unit>=<range-start>-<range-end>
-        let start_end_range = match get_start_end_range(trimmed_value_str) {
+        // window-range
+        let start_end_range = match get_window_range(trimmed_value_str) {
             Some(ser) => ser,
             _ => return None,
         };
@@ -110,7 +104,7 @@ fn get_ranges(range_str: &str) -> Option<Vec<(Option<usize>, Option<usize>)>> {
     return Some(ranges);
 }
 
-fn get_start_end_range(range_chunk: &str) -> Option<(Option<usize>, Option<usize>)> {
+fn get_window_range(range_chunk: &str) -> Option<(Option<usize>, Option<usize>)> {
     let mut values = range_chunk.split("-");
 
     let start_range_str = match values.next() {

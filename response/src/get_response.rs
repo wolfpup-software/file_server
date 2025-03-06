@@ -31,7 +31,7 @@ pub async fn build_get_response(
 
     // request file
     let encodings = get_encodings(&req, &content_encodings);
-    println!("encodings:\n{:?}", &encodings);
+
     // serve file
     if let Some(res) = build_file_response(&req, &directory, &encodings).await {
         return res;
