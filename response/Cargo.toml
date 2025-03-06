@@ -1,5 +1,5 @@
 [package]
-name = "responses"
+name = "response"
 version = "0.1.0"
 edition = "2021"
 

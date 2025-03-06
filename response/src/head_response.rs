@@ -25,19 +25,19 @@ pub async fn build_head_response(
     let encodings = get_encodings(&req, &content_encodings);
 
     // encodings
-    if let Some(res) = compose_enc_head_response(&filepath, content_type, encodings).await {
+    if let Some(res) = compose_encoded_response(&filepath, content_type, encodings).await {
         return res;
     };
 
     // origin target
-    if let Some(res) = compose_head_response(&filepath, content_type, None).await {
+    if let Some(res) = compose_response(&filepath, content_type, None).await {
         return res;
     }
 
     build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 
-async fn compose_enc_head_response(
+async fn compose_encoded_response(
     filepath: &PathBuf,
     content_type: &str,
     encodings: Option<Vec<String>>,
@@ -49,7 +49,7 @@ async fn compose_enc_head_response(
 
     for enc in encds {
         if let Some(encoded_path) = add_extension(filepath, &enc) {
-            if let Some(res) = compose_head_response(&encoded_path, content_type, Some(enc)).await {
+            if let Some(res) = compose_response(&encoded_path, content_type, Some(enc)).await {
                 return Some(res);
             }
         };
@@ -58,7 +58,7 @@ async fn compose_enc_head_response(
     None
 }
 
-async fn compose_head_response(
+async fn compose_response(
     filepath: &PathBuf,
     content_type: &str,
     content_encoding: Option<String>,

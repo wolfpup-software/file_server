@@ -45,7 +45,7 @@ pub async fn build_range_response(
         }
     };
 
-    let filepath = match get_path_from_request_url(&req, &directory).await {
+    let filepath = match get_path_from_request_url(req, directory).await {
         Some(fp) => fp,
         _ => {
             return Some(build_last_resort_response(
@@ -55,13 +55,11 @@ pub async fn build_range_response(
         }
     };
 
-    let content_type = get_content_type(&filepath);
     let encodings = get_encodings(&req, &content_encodings);
 
     // single range
     if 1 == ranges.len() {
-        if let Some(res) = build_range_responses(&filepath, &content_type, &encodings, ranges).await
-        {
+        if let Some(res) = build_range_responses(&filepath, &encodings, ranges).await {
             return Some(res);
         }
     }
@@ -172,10 +170,11 @@ fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> S
 
 async fn build_range_responses(
     filepath: &PathBuf,
-    content_type: &str,
     encodings: &Option<Vec<String>>,
     ranges: Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    let content_type = get_content_type(&filepath);
+
     if let Some(res) =
         compose_enc_range_response(&filepath, content_type, &encodings, &ranges).await
     {
@@ -233,22 +232,15 @@ async fn compose_single_range_response(
     }
 
     let size = metadata.len() as usize;
-    let (start, end) = match ranges.get(0) {
-        // suffix (M - N, M)
-        Some((None, Some(end))) => (size - end, size),
-        // prefix (N, M)
-        Some((Some(start), None)) => (start.clone(), size),
-        //
-        Some((Some(start), Some(end))) => (start.clone(), end.clone()),
-        _ => return None,
+    let (start, end) = match get_start_end(ranges, size) {
+        Some(se) => se,
+        _ => {
+            return Some(build_last_resort_response(
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                RANGE_NOT_SATISFIABLE_416,
+            ))
+        }
     };
-
-    if end < start || size < start {
-        return Some(build_last_resort_response(
-            StatusCode::RANGE_NOT_SATISFIABLE,
-            RANGE_NOT_SATISFIABLE_416,
-        ));
-    }
 
     let mut file = match File::open(filepath).await {
         Ok(m) => m,
@@ -278,4 +270,25 @@ async fn compose_single_range_response(
     }
 
     return Some(builder.body(boxed_body));
+}
+
+fn get_start_end(
+    ranges: &Vec<(Option<usize>, Option<usize>)>,
+    size: usize,
+) -> Option<(usize, usize)> {
+    let (start, end) = match ranges.get(0) {
+        // suffix (M - N, M)
+        Some((None, Some(end))) => (size - end, size),
+        // prefix (N, M)
+        Some((Some(start), None)) => (start.clone(), size),
+        //
+        Some((Some(start), Some(end))) => (start.clone(), end.clone()),
+        _ => return None,
+    };
+
+    if start <= end && end <= size {
+        return Some((start, end));
+    }
+
+    None
 }

@@ -10,7 +10,7 @@ use std::pin::Pin;
     It should work with hyper responses across
     different libraries and dependencies.
 */
-use responses::BoxedResponse;
+use response::{build_response, BoxedResponse};
 
 #[derive(Clone, Debug)]
 pub struct Svc {
@@ -43,8 +43,8 @@ impl Service<Request<IncomingBody>> for Svc {
         let content_encodings = self.content_encodings.clone();
         let fallback_404 = self.fallback_404.clone();
 
-        Box::pin(async move {
-            responses::build_response(req, directory, content_encodings, fallback_404).await
-        })
+        Box::pin(
+            async move { build_response(req, directory, content_encodings, fallback_404).await },
+        )
     }
 }
