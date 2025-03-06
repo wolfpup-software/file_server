@@ -1,9 +1,6 @@
 {
 	"directory": "./demo",
-	"host_and_port": "127.0.0.1:4000",
+	"host_and_port": "127.0.0.1:3000",
 	"content_encodings": ["gzip", "deflate", "br", "zstd"],
-	"filepath_404s": [
-		["./demo/404.html.gz", "gzip"],
-		["./demo/404.html", null]
-	]
+	"filepath_404": "./demo/404.html"
 }

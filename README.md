@@ -11,57 +11,28 @@ Bash the following commands:
 
 ```sh
 git clone https://github.com/herebythere/file_server
-cargo install --path file_server
-```
-
-### Configuration
-
-A valid JSON configuration file is required to run this fileserver.
-
-```JSON
-{
-	"directory": "./demo",
-	"host_and_port": "127.0.0.1:4000",
-	"content_encodings": ["gzip", "deflate", "br", "zstd"],
-	"filepath_404s": [
-		["./demo/404.gz", "gzip"],
-		["./demo/404.html", null]
-	]
-}
+cargo install --path file_server/file_server
 ```
 
 ### Run
 
-Bash the following command to serve files in the `cwd` at `localhost:4000`:
+Run the following command:
 
 ```sh
-file_server path/to/config.json
+file_server
 ```
 
-Open a browser and visit `http://localhost:3000`.
+This will start `file_server` with it's default configuration in the `cwd`.
 
-### Accept-Encoding
-
-If a request has an `accept-encoding` header:
-
-```
-Accept-Encoding: gzip;
-```
-
-`file_server` will return a corresponding `gzip`-ed version of a requested file if available.
+Bash the following command to serve files in the `cwd` at `localhost:3000`:
 
 ```sh
-/www/index.html.gz	# accept-encoding: gzip;
-/www/index.html		# defacto file served
+curl localhost:3000
 ```
 
-Otherwise it will serve the unencoded file.
+### Configuration
 
-### Range requests
-
-`File_server` supports range requests.
-
-Multipart ranges are supported but not deployed.
+Click [here](./configuration.md) to learn how to configure `file_server`.
 
 ## Licence
 

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::env;
 use std::path;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -8,11 +9,25 @@ use tokio::fs;
 pub struct Config {
     pub host_and_port: String,
     pub directory: PathBuf,
-    pub content_encodings: Vec<String>,
-    pub filepath_404s: Vec<(PathBuf, Option<String>)>,
+    pub content_encodings: Option<Vec<String>>,
+    pub filepath_404: Option<PathBuf>,
 }
 
 impl Config {
+    pub fn new() -> Result<Config, String> {
+        let curr_dir = match env::current_dir() {
+            Ok(pb) => pb,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        Ok(Config {
+            host_and_port: "0.0.0.0:3000".to_string(),
+            directory: curr_dir,
+            content_encodings: None,
+            filepath_404: None,
+        })
+    }
+
     pub async fn try_from(source_path: &PathBuf) -> Result<Config, String> {
         // see if config exists
         let config_json = match fs::read_to_string(source_path).await {
@@ -45,32 +60,29 @@ impl Config {
             Err(e) => return Err(e.to_string()),
         };
 
-        let updated_404s = match get_paths(parent_dir, config.filepath_404s) {
-            Ok(pb) => pb,
-            Err(e) => return Err(e.to_string()),
-        };
-
         config.directory = target_directory_abs;
-        config.filepath_404s = updated_404s;
+
+        if let Some(origin_404s) = config.filepath_404 {
+            config.filepath_404 = match get_path_relative_to_origin(parent_dir, &origin_404s) {
+                Ok(pb) => Some(pb),
+                Err(e) => return Err(e.to_string()),
+            };
+        }
 
         Ok(config)
     }
 }
 
-fn get_paths(
-    source_dir: &Path,
-    filepaths: Vec<(PathBuf, Option<String>)>,
-) -> Result<Vec<(PathBuf, Option<String>)>, String> {
-    let mut updated_filepaths = Vec::new();
+fn get_path_relative_to_origin(source_dir: &Path, filepath: &PathBuf) -> Result<PathBuf, String> {
+    let target_path = source_dir.join(filepath);
+    let target_path_abs = match path::absolute(target_path) {
+        Ok(pb) => pb,
+        Err(e) => return Err(e.to_string()),
+    };
 
-    for (file_path, encoding_type) in filepaths {
-        let target_path = source_dir.join(file_path);
-        let target_path_abs = match path::absolute(target_path) {
-            Ok(pb) => pb,
-            Err(e) => return Err(e.to_string()),
-        };
-        updated_filepaths.push((target_path_abs, encoding_type));
+    if target_path_abs.starts_with(source_dir) {
+        return Ok(target_path_abs);
     }
 
-    Ok(updated_filepaths)
+    Err("filepath_404 does not reside in source_dir".to_string())
 }
