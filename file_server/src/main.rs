@@ -10,23 +10,25 @@ mod service;
 use crate::config::Config;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), String> {
     let conf = match get_config().await {
         Ok(c) => c,
-        Err(e) => return println!("{}", e.to_string()),
+        Err(e) => return Err(e),
     };
 
-    let listener = match TcpListener::bind(conf.host_and_port).await {
+    let listener = match TcpListener::bind(&conf.host_and_port).await {
         Ok(lstnr) => lstnr,
-        Err(e) => return println!("tcp listener error:\n{}", e),
+        Err(e) => return Err(e.to_string()),
     };
+
+    println!("file_server: {}", conf.host_and_port);
 
     let svc = service::Svc::new(conf.directory, conf.content_encodings, conf.filepath_404);
 
     loop {
         let (stream, _remote_address) = match listener.accept().await {
             Ok(strm) => strm,
-            Err(e) => return println!("tcp accept error:\n{}", e),
+            Err(e) => return Err(e.to_string()),
         };
 
         let io = TokioIo::new(stream);

@@ -11,7 +11,7 @@ Bash the following commands:
 
 ```sh
 git clone https://github.com/herebythere/file_server
-cargo install --path file_server
+cargo install --path file_server/file_server
 ```
 
 ### Run
