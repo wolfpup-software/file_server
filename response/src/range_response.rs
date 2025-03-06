@@ -45,21 +45,11 @@ pub async fn build_range_response(
         }
     };
 
-    let filepath = match get_path_from_request_url(req, directory).await {
-        Some(fp) => fp,
-        _ => {
-            return Some(build_last_resort_response(
-                StatusCode::NOT_FOUND,
-                NOT_FOUND_404,
-            ))
-        }
-    };
-
-    let encodings = get_encodings(&req, &content_encodings);
-
     // single range
     if 1 == ranges.len() {
-        if let Some(res) = build_single_range_responses(&filepath, &encodings, ranges).await {
+        if let Some(res) =
+            build_single_range_responses(req, directory, content_encodings, ranges).await
+        {
             return Some(res);
         }
     }
@@ -169,11 +159,23 @@ fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> S
 }
 
 async fn build_single_range_responses(
-    filepath: &PathBuf,
-    encodings: &Option<Vec<String>>,
+    req: &Request<IncomingBody>,
+    directory: &PathBuf,
+    content_encodings: &Option<Vec<String>>,
     ranges: Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    let filepath = match get_path_from_request_url(req, directory).await {
+        Some(fp) => fp,
+        _ => {
+            return Some(build_last_resort_response(
+                StatusCode::NOT_FOUND,
+                NOT_FOUND_404,
+            ))
+        }
+    };
+
     let content_type = get_content_type(&filepath);
+    let encodings = get_encodings(&req, &content_encodings);
 
     if let Some(res) = compose_encoded_response(&filepath, content_type, &encodings, &ranges).await
     {
