@@ -35,24 +35,10 @@ pub async fn build_range_response(
         _ => return None,
     };
 
-    let ranges = match get_ranges(&range_header) {
-        Some(rngs) => rngs,
-        _ => {
-            return Some(build_last_resort_response(
-                StatusCode::RANGE_NOT_SATISFIABLE,
-                RANGE_NOT_SATISFIABLE_416,
-            ))
-        }
+    let ranges = get_ranges(&range_header);
+    if let Some(res) = compose_range_response(req, directory, content_encodings, ranges).await {
+        return Some(res);
     };
-
-    // single range
-    if 1 == ranges.len() {
-        if let Some(res) =
-            build_single_range_responses(req, directory, content_encodings, ranges).await
-        {
-            return Some(res);
-        }
-    }
 
     Some(build_last_resort_response(
         StatusCode::NOT_FOUND,
@@ -154,28 +140,48 @@ fn get_start_end_range(range_chunk: &str) -> Option<(Option<usize>, Option<usize
     None
 }
 
-fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> String {
-    "bytes ".to_string() + &start.to_string() + "-" + &end.to_string() + "/" + &size.to_string()
-}
-
-async fn build_single_range_responses(
+async fn compose_range_response(
     req: &Request<IncomingBody>,
     directory: &PathBuf,
     content_encodings: &Option<Vec<String>>,
-    ranges: Vec<(Option<usize>, Option<usize>)>,
+    ranges: Option<Vec<(Option<usize>, Option<usize>)>>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let filepath = match get_path_from_request_url(req, directory).await {
-        Some(fp) => fp,
+    let rngs = match ranges {
+        Some(r) => r,
         _ => {
             return Some(build_last_resort_response(
-                StatusCode::NOT_FOUND,
-                NOT_FOUND_404,
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                RANGE_NOT_SATISFIABLE_416,
             ))
         }
     };
 
+    let filepath = match get_path_from_request_url(req, directory).await {
+        Some(fp) => fp,
+        _ => return None,
+    };
+
+    let encodings = get_encodings(req, content_encodings);
+
+    if 1 == rngs.len() {
+        if let Some(res) = build_single_range_response(&filepath, encodings, rngs).await {
+            return Some(res);
+        }
+    }
+
+    None
+}
+
+fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> String {
+    "bytes ".to_string() + &start.to_string() + "-" + &end.to_string() + "/" + &size.to_string()
+}
+
+async fn build_single_range_response(
+    filepath: &PathBuf,
+    encodings: Option<Vec<String>>,
+    ranges: Vec<(Option<usize>, Option<usize>)>,
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     let content_type = get_content_type(&filepath);
-    let encodings = get_encodings(&req, &content_encodings);
 
     if let Some(res) = compose_encoded_response(&filepath, content_type, &encodings, &ranges).await
     {
@@ -183,11 +189,7 @@ async fn build_single_range_responses(
     };
 
     // origin target
-    if let Some(res) = compose_single_range_response(&filepath, content_type, None, &ranges).await {
-        return Some(res);
-    }
-
-    None
+    compose_single_range_response(&filepath, content_type, None, &ranges).await
 }
 
 async fn compose_encoded_response(
@@ -220,16 +222,11 @@ async fn compose_single_range_response(
     content_encoding: Option<&str>,
     ranges: &Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    let metadata = match fs::metadata(filepath).await {
-        Ok(m) => m,
+    let size = match get_size(filepath).await {
+        Some(s) => s,
         _ => return None,
     };
 
-    if !metadata.is_file() {
-        return None;
-    }
-
-    let size = metadata.len() as usize;
     let (start, end) = match get_start_end(ranges, size) {
         Some(se) => se,
         _ => {
@@ -270,16 +267,29 @@ async fn compose_single_range_response(
     return Some(builder.body(boxed_body));
 }
 
+async fn get_size(filepath: &PathBuf) -> Option<usize> {
+    let metadata = match fs::metadata(filepath).await {
+        Ok(m) => m,
+        _ => return None,
+    };
+
+    if !metadata.is_file() {
+        return None;
+    }
+
+    Some(metadata.len() as usize)
+}
+
 fn get_start_end(
     ranges: &Vec<(Option<usize>, Option<usize>)>,
     size: usize,
 ) -> Option<(usize, usize)> {
     let (start, end) = match ranges.get(0) {
-        // suffix (M - N, M)
+        // suffix (S - N, S)
         Some((None, Some(end))) => (size - end, size),
-        // prefix (N, M)
+        // prefix (N, S)
         Some((Some(start), None)) => (start.clone(), size),
-        //
+        // windowed (N, M)
         Some((Some(start), Some(end))) => (start.clone(), end.clone()),
         _ => return None,
     };

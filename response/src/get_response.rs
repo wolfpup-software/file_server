@@ -31,7 +31,7 @@ pub async fn build_get_response(
 
     // request file
     let encodings = get_encodings(&req, &content_encodings);
-
+    println!("encodings:\n{:?}", &encodings);
     // serve file
     if let Some(res) = build_file_response(&req, &directory, &encodings).await {
         return res;
@@ -55,7 +55,7 @@ async fn build_file_response(
         _ => return None,
     };
 
-    build_responses(&filepath, StatusCode::OK, &encodings).await
+    build_response(&filepath, StatusCode::OK, &encodings).await
 }
 
 async fn build_not_found_response(
@@ -78,10 +78,10 @@ async fn build_not_found_response(
         return None;
     }
 
-    build_responses(&fallback, StatusCode::NOT_FOUND, &encodings).await
+    build_response(&fallback, StatusCode::NOT_FOUND, &encodings).await
 }
 
-async fn build_responses(
+async fn build_response(
     filepath: &PathBuf,
     status_code: StatusCode,
     encodings: &Option<Vec<String>>,

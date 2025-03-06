@@ -16,10 +16,12 @@ pub async fn build_head_response(
     directory: PathBuf,
     content_encodings: Option<Vec<String>>,
 ) -> Result<BoxedResponse, hyper::http::Error> {
+    println!("head resposne!");
     let filepath = match get_path_from_request_url(&req, &directory).await {
         Some(fp) => fp,
         _ => return build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404),
     };
+    println!("{:?}\n", &filepath);
 
     let content_type = get_content_type(&filepath);
     let encodings = get_encodings(&req, &content_encodings);

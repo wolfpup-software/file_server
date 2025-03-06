@@ -21,7 +21,7 @@ impl Config {
         };
 
         Ok(Config {
-            host_and_port: "0.0.0.0:6000".to_string(),
+            host_and_port: "0.0.0.0:3000".to_string(),
             directory: curr_dir,
             content_encodings: None,
             filepath_404: None,
