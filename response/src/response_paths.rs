@@ -14,7 +14,7 @@ pub async fn get_path_from_request_url(
 ) -> Option<PathBuf> {
     let uri_path = req.uri().path();
 
-    let stripped = match uri_path.strip_prefix("/") {
+    let stripped = match req.uri().path().strip_prefix("/") {
         Some(p) => p,
         _ => uri_path,
     };

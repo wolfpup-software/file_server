@@ -4,6 +4,7 @@ use hyper::body::{Frame, Incoming};
 use hyper::header::{CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE};
 use hyper::http::{Request, Response};
 use hyper::StatusCode;
+use std::path;
 use std::path::PathBuf;
 use tokio::fs;
 use tokio::fs::File;
@@ -37,7 +38,11 @@ pub async fn build_get_response(
     };
 
     // serve 404
-    build_not_found_response(&directory, &fallback_404, &encodings).await
+    if let Some(res) = build_not_found_response(&directory, &fallback_404, &encodings).await {
+        return res;
+    };
+
+    build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
 }
 
 async fn build_file_response(
@@ -57,15 +62,23 @@ async fn build_not_found_response(
     directory: &PathBuf,
     fallback_404: &Option<PathBuf>,
     encodings: &Option<Vec<String>>,
-) -> Result<BoxedResponse, hyper::http::Error> {
-    if let Some(fallback) = fallback_404 {
-        // file starts with directory
-        if let Some(res) = build_responses(&fallback, StatusCode::NOT_FOUND, &encodings).await {
-            return res;
-        };
+) -> Option<Result<BoxedResponse, hyper::http::Error>> {
+    let fallback = match fallback_404 {
+        Some(fb) => fb,
+        _ => return None,
+    };
+
+    // file starts with directory
+    let fallback_404_abs = match path::absolute(fallback) {
+        Ok(fb) => fb,
+        _ => return None,
+    };
+
+    if !fallback_404_abs.starts_with(directory) {
+        return None;
     }
 
-    build_last_resort_response(StatusCode::NOT_FOUND, NOT_FOUND_404)
+    build_responses(&fallback, StatusCode::NOT_FOUND, &encodings).await
 }
 
 async fn build_responses(

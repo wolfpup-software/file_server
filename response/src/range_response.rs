@@ -59,7 +59,7 @@ pub async fn build_range_response(
 
     // single range
     if 1 == ranges.len() {
-        if let Some(res) = build_range_responses(&filepath, &encodings, ranges).await {
+        if let Some(res) = build_single_range_responses(&filepath, &encodings, ranges).await {
             return Some(res);
         }
     }
@@ -168,15 +168,14 @@ fn build_content_range_header_str(start: &usize, end: &usize, size: &usize) -> S
     "bytes ".to_string() + &start.to_string() + "-" + &end.to_string() + "/" + &size.to_string()
 }
 
-async fn build_range_responses(
+async fn build_single_range_responses(
     filepath: &PathBuf,
     encodings: &Option<Vec<String>>,
     ranges: Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
     let content_type = get_content_type(&filepath);
 
-    if let Some(res) =
-        compose_enc_range_response(&filepath, content_type, &encodings, &ranges).await
+    if let Some(res) = compose_encoded_response(&filepath, content_type, &encodings, &ranges).await
     {
         return Some(res);
     };
@@ -189,7 +188,7 @@ async fn build_range_responses(
     None
 }
 
-async fn compose_enc_range_response(
+async fn compose_encoded_response(
     filepath: &PathBuf,
     content_type: &str,
     encodings: &Option<Vec<String>>,
@@ -219,9 +218,6 @@ async fn compose_single_range_response(
     content_encoding: Option<&str>,
     ranges: &Vec<(Option<usize>, Option<usize>)>,
 ) -> Option<Result<BoxedResponse, hyper::http::Error>> {
-    // build response
-
-    // get size if file
     let metadata = match fs::metadata(filepath).await {
         Ok(m) => m,
         _ => return None,
@@ -247,7 +243,7 @@ async fn compose_single_range_response(
         _ => return None,
     };
 
-    if let Err(e) = file.seek(SeekFrom::Start(start.clone() as u64)).await {
+    if let Err(_err) = file.seek(SeekFrom::Start(start.clone() as u64)).await {
         return None;
     };
 
